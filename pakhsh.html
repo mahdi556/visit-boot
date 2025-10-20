@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد پخش مویرگی</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary-color: #6C63FF;
+            --primary-light: #8A85FF;
+            --secondary-color: #4A44C6;
+            --success-color: #36D1DC;
+            --warning-color: #FF6584;
+            --info-color: #5B86E5;
+            --light-color: #f8f9fa;
+            --dark-color: #2D3748;
+            --bg-color: #F7FAFC;
+            --card-bg: #FFFFFF;
+            --sidebar-bg: linear-gradient(180deg, #6C63FF 0%, #4A44C6 100%);
+        }
+        
+        * {
+            font-family: 'Vazirmatn', sans-serif;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            padding-top: 70px;
+            color: var(--dark-color);
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 280px;
+            z-index: 1000;
+            background: var(--sidebar-bg);
+            transition: all 0.3s ease;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        
+        .sidebar-brand {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        
+        .sidebar-brand .brand-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            margin-right: 10px;
+        }
+        
+        .sidebar-brand .brand-icon {
+            font-size: 1.8rem;
+            color: white;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            padding: 14px 20px;
+            margin: 6px 15px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: white;
+            transform: translateX(-5px);
+        }
+        
+        .sidebar .nav-link i {
+            margin-left: 12px;
+            font-size: 1.2rem;
+        }
+        
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            color: white;
+        }
+        
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 12px;
+            font-size: 1.2rem;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-right: 280px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+        
+        /* Navbar */
+        .navbar {
+            background-color: var(--card-bg);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 15px 25px;
+            height: 70px;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.4rem;
+        }
+        
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 25px;
+            background: var(--card-bg);
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background: transparent;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 20px 25px 15px;
+        }
+        
+        .card-title {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 0;
+        }
+        
+        /* Stats Cards */
+        .stat-card {
+            border-left: 5px solid;
+            padding: 20px;
+            height: 100%;
+        }
+        
+        .stat-card.sales {
+            border-left-color: var(--primary-color);
+        }
+        
+        .stat-card.orders {
+            border-left-color: var(--success-color);
+        }
+        
+        .stat-card.customers {
+            border-left-color: var(--info-color);
+        }
+        
+        .stat-card.revenue {
+            border-left-color: var(--warning-color);
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin-left: 15px;
+        }
+        
+        .stat-card.sales .stat-icon {
+            background: rgba(108, 99, 255, 0.15);
+            color: var(--primary-color);
+        }
+        
+        .stat-card.orders .stat-icon {
+            background: rgba(54, 209, 220, 0.15);
+            color: var(--success-color);
+        }
+        
+        .stat-card.customers .stat-icon {
+            background: rgba(91, 134, 229, 0.15);
+            color: var(--info-color);
+        }
+        
+        .stat-card.revenue .stat-icon {
+            background: rgba(255, 101, 132, 0.15);
+            color: var(--warning-color);
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #718096;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .stat-change {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        /* Map */
+        #storesMap {
+            height: 450px;
+            border-radius: 12px;
+            z-index: 1;
+        }
+        
+        .map-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .store-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-width: 320px;
+            display: none;
+        }
+        
+        .store-info h5 {
+            color: var(--primary-color);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        .store-details {
+            font-size: 0.9rem;
+        }
+        
+        .store-details i {
+            margin-left: 8px;
+            color: var(--primary-color);
+        }
+        
+        /* Quick Order Button */
+        .quick-order-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            z-index: 100;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+            transition: all 0.3s ease;
+            border: none;
+        }
+        
+        .quick-order-btn:hover {
+            transform: scale(1.1);
+            background: var(--secondary-color);
+            box-shadow: 0 8px 25px rgba(108, 99, 255, 0.5);
+        }
+        
+        /* Filter Buttons */
+        .filter-btn {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 0;
+                overflow: hidden;
+            }
+            
+            .sidebar.show {
+                width: 280px;
+            }
+            
+            .main-content {
+                margin-right: 0;
+            }
+            
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+            }
+            
+            .overlay.show {
+                display: block;
+            }
+            
+            #storesMap {
+                height: 350px;
+            }
+            
+            .quick-order-btn {
+                bottom: 20px;
+                left: 20px;
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+        }
+        
+        /* Custom marker styles */
+        .custom-marker {
+            background: var(--primary-color);
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .marker-supermarket {
+            background-color: var(--primary-color);
+        }
+        
+        .marker-grocery {
+            background-color: var(--info-color);
+        }
+        
+        .marker-convenience {
+            background-color: var(--warning-color);
+        }
+        
+        .marker-hypermarket {
+            background-color: var(--secondary-color);
+        }
+        
+        /* Table */
+        .table th {
+            font-weight: 600;
+            color: var(--dark-color);
+            border-top: none;
+        }
+        
+        .badge {
+            font-weight: 500;
+            padding: 6px 10px;
+            border-radius: 8px;
+        }
+        
+        /* Chart Placeholder */
+        .chart-placeholder {
+            background: linear-gradient(135deg, #f5f7ff 0%, #f0f4ff 100%);
+            border-radius: 12px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: var(--primary-color);
+        }
+        
+        .chart-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="overlay"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="d-flex flex-column h-100">
+            <!-- Brand -->
+            <div class="sidebar-brand">
+                <div class="d-flex align-items-center justify-content-center">
+                    <i class="bi bi-shop-window brand-icon"></i>
+                    <span class="brand-text">پخش مویرگی</span>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <div class="flex-grow-1 p-3">
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link active">
+                            <i class="bi bi-speedometer2"></i>
+                            داشبورد
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-cart-check"></i>
+                            سفارشات
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-people"></i>
+                            مشتریان
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-box-seam"></i>
+                            محصولات
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-graph-up"></i>
+                            گزارشات
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-geo-alt"></i>
+                            مناطق پخش
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-truck"></i>
+                            پیک‌ها
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-cash-coin"></i>
+                            مالی
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <i class="bi bi-gear"></i>
+                            تنظیمات
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- User Section -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">محمد رضایی</div>
+                        <small class="text-white-50">مدیر سیستم</small>
+                    </div>
+                    <a href="#" class="text-white-50">
+                        <i class="bi bi-box-arrow-left"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+            <div class="container-fluid">
+                <button class="btn btn-primary me-3 d-lg-none" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                
+                <a class="navbar-brand" href="#">
+                    <i class="bi bi-shop-window me-2"></i>
+                    پخش مویرگی
+                </a>
+                
+                <div class="d-flex ms-auto">
+                    <div class="dropdown me-3">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="notificationsDropdown" data-bs-toggle="dropdown">
+                            <i class="bi bi-bell"></i>
+                            <span class="badge bg-danger">3</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#">سفارش جدید دریافت شد</a></li>
+                            <li><a class="dropdown-item" href="#">پیک جدید به سیستم اضافه شد</a></li>
+                            <li><a class="dropdown-item" href="#">گزارش فروش هفتگی آماده است</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-2"></i>
+                            محمد رضایی
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>پروفایل</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>تنظیمات</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-box-arrow-left me-2"></i>خروج</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Page Content -->
+        <div class="container-fluid">
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 fw-bold">داشبورد فروش</h1>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary">امروز</button>
+                    <button class="btn btn-outline-primary">هفته جاری</button>
+                    <button class="btn btn-outline-primary active">ماه جاری</button>
+                    <button class="btn btn-outline-primary">سه ماهه</button>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row">
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stat-card sales">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="stat-icon">
+                                    <i class="bi bi-cart-check"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="stat-label">فروش کل</div>
+                                    <div class="stat-value">۱۲,۴۵۰,۰۰۰</div>
+                                    <div class="stat-change text-success">
+                                        <i class="bi bi-arrow-up"></i>
+                                        ۱۲.۵% افزایش نسبت به ماه قبل
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stat-card orders">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="stat-icon">
+                                    <i class="bi bi-bag-check"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="stat-label">سفارشات</div>
+                                    <div class="stat-value">۴۵۲</div>
+                                    <div class="stat-change text-success">
+                                        <i class="bi bi-arrow-up"></i>
+                                        ۸.۲% افزایش نسبت به ماه قبل
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stat-card customers">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="stat-icon">
+                                    <i class="bi bi-people"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="stat-label">مشتریان جدید</div>
+                                    <div class="stat-value">۶۸</div>
+                                    <div class="stat-change text-danger">
+                                        <i class="bi bi-arrow-down"></i>
+                                        ۲.۳% کاهش نسبت به ماه قبل
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card stat-card revenue">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="stat-icon">
+                                    <i class="bi bi-currency-dollar"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="stat-label">درآمد خالص</div>
+                                    <div class="stat-value">۹,۸۲۰,۰۰۰</div>
+                                    <div class="stat-change text-success">
+                                        <i class="bi bi-arrow-up"></i>
+                                        ۱۵.۷% افزایش نسبت به ماه قبل
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Section -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-geo-alt-fill text-primary me-2"></i>
+                                نقشه فروشگاه‌ها
+                            </h5>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn filter-btn active" data-store-type="all">همه</button>
+                                <button class="btn filter-btn" data-store-type="supermarket">سوپرمارکت</button>
+                                <button class="btn filter-btn" data-store-type="grocery">بقالی</button>
+                                <button class="btn filter-btn" data-store-type="convenience">مینی‌مارکت</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="map-container">
+                                <div id="storesMap"></div>
+                                <div class="store-info" id="storeInfo">
+                                    <h5 id="storeName">نام فروشگاه</h5>
+                                    <div class="store-details">
+                                        <div class="mb-2">
+                                            <i class="bi bi-geo-alt"></i>
+                                            <span id="storeAddress">آدرس فروشگاه</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <i class="bi bi-telephone"></i>
+                                            <span id="storePhone">شماره تماس</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <i class="bi bi-person"></i>
+                                            <span id="storeOwner">نام مالک</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <i class="bi bi-cart"></i>
+                                            <span id="storeSales">فروش ماه: 12,450,000 تومان</span>
+                                        </div>
+                                        <div>
+                                            <i class="bi bi-star"></i>
+                                            <span id="storeRating">امتیاز: 4.5/5</span>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-primary mt-3 w-100">مشاهده جزئیات</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts and Tables -->
+            <div class="row">
+                <!-- Sales Chart -->
+                <div class="col-xl-8 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">روند فروش ماهانه</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container h-100">
+                                <div class="chart-placeholder h-100">
+                                    <i class="bi bi-bar-chart"></i>
+                                    <p>نمودار فروش ماهانه</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top Products -->
+                <div class="col-xl-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">محصولات پرفروش</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded p-2 me-3">
+                                            <i class="bi bi-cup-straw text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">شیر پرچرب</h6>
+                                            <small class="text-muted">کد: 00123</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-primary">۴۵۲ عدد</span>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded p-2 me-3">
+                                            <i class="bi bi-droplet text-success"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">ماست کم چرب</h6>
+                                            <small class="text-muted">کد: 00124</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-primary">۳۸۷ عدد</span>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded p-2 me-3">
+                                            <i class="bi bi-egg text-warning"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">پنیر پیتزا</h6>
+                                            <small class="text-muted">کد: 00125</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-primary">۲۹۸ عدد</span>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded p-2 me-3">
+                                            <i class="bi bi-basket text-info"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">کره گیاهی</h6>
+                                            <small class="text-muted">کد: 00126</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-primary">۲۴۵ عدد</span>
+                                </div>
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 border-0">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded p-2 me-3">
+                                            <i class="bi bi-cloud-drizzle text-danger"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">خامه صبحانه</h6>
+                                            <small class="text-muted">کد: 00127</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-primary">۲۱۰ عدد</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Orders -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">سفارشات اخیر</h5>
+                            <a href="#" class="btn btn-sm btn-outline-primary">مشاهده همه</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>شماره سفارش</th>
+                                            <th>مشتری</th>
+                                            <th>تاریخ</th>
+                                            <th>مبلغ</th>
+                                            <th>وضعیت</th>
+                                            <th>عملیات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-bold">#ORD-7845</td>
+                                            <td>علی محمدی</td>
+                                            <td>۱۴۰۲/۰۵/۱۲</td>
+                                            <td>۲۵۰,۰۰۰ تومان</td>
+                                            <td><span class="badge bg-success">تحویل شده</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">جزئیات</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">#ORD-7844</td>
+                                            <td>مریم حسینی</td>
+                                            <td>۱۴۰۲/۰۵/۱۲</td>
+                                            <td>۱۸۰,۰۰۰ تومان</td>
+                                            <td><span class="badge bg-warning">در حال ارسال</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">جزئیات</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">#ORD-7843</td>
+                                            <td>رضا کریمی</td>
+                                            <td>۱۴۰۲/۰۵/۱۱</td>
+                                            <td>۳۲۰,۰۰۰ تومان</td>
+                                            <td><span class="badge bg-success">تحویل شده</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">جزئیات</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-bold">#ORD-7842</td>
+                                            <td>سارا احمدی</td>
+                                            <td>۱۴۰۲/۰۵/۱۱</td>
+                                            <td>۱۵۰,۰۰۰ تومان</td>
+                                            <td><span class="badge bg-danger">لغو شده</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">جزئیات</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Order Button -->
+    <button class="quick-order-btn" id="quickOrderBtn" data-bs-toggle="modal" data-bs-target="#orderModal">
+        <i class="bi bi-plus-lg"></i>
+    </button>
+
+    <!-- Order Modal -->
+    <div class="modal fade" id="orderModal" tabindex="-1" aria-labelledby="orderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderModalLabel">ثبت سریع سفارش</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="customerName" class="form-label">نام مشتری</label>
+                                <input type="text" class="form-control" id="customerName" placeholder="نام مشتری را وارد کنید">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="customerPhone" class="form-label">شماره تماس</label>
+                                <input type="text" class="form-control" id="customerPhone" placeholder="شماره تماس را وارد کنید">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="customerAddress" class="form-label">آدرس</label>
+                            <textarea class="form-control" id="customerAddress" rows="2" placeholder="آدرس کامل را وارد کنید"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">محصولات</label>
+                            <div class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>شیر پرچرب (کد: 00123)</span>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary">-</button>
+                                        <span class="mx-2">1</span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary">+</button>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>ماست کم چرب (کد: 00124)</span>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary">-</button>
+                                        <span class="mx-2">2</span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary">+</button>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>پنیر پیتزا (کد: 00125)</span>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary">-</button>
+                                        <span class="mx-2">1</span>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="orderNotes" class="form-label">یادداشت</label>
+                            <textarea class="form-control" id="orderNotes" rows="2" placeholder="یادداشت سفارش (اختیاری)"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+                    <button type="button" class="btn btn-primary">ثبت سفارش</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Custom Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.querySelector('.overlay');
+            const quickOrderBtn = document.getElementById('quickOrderBtn');
+            
+            // Toggle sidebar on mobile
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('show');
+                overlay.classList.toggle('show');
+            });
+            
+            // Close sidebar when clicking on overlay
+            overlay.addEventListener('click', function() {
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+            });
+            
+            // Close sidebar when clicking on a nav link (on mobile)
+            if (window.innerWidth < 768) {
+                const navLinks = document.querySelectorAll('.sidebar .nav-link');
+                navLinks.forEach(link => {
+                    link.addEventListener('click', function() {
+                        sidebar.classList.remove('show');
+                        overlay.classList.remove('show');
+                    });
+                });
+            }
+
+            // Initialize the map
+            const map = L.map('storesMap').setView([35.6892, 51.3890], 11); // Tehran coordinates
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Store data
+            const stores = [
+                {
+                    id: 1,
+                    name: "سوپرمارکت نگین",
+                    type: "supermarket",
+                    lat: 35.7012,
+                    lng: 51.3910,
+                    address: "خیابان ولیعصر، نرسیده به میدان ولیعصر",
+                    phone: "021-22334455",
+                    owner: "احمد محمدی",
+                    sales: "15,200,000 تومان",
+                    rating: "4.7/5"
+                },
+                {
+                    id: 2,
+                    name: "بقالی امید",
+                    type: "grocery",
+                    lat: 35.6952,
+                    lng: 51.4050,
+                    address: "میدان انقلاب، خیابان کارگر شمالی",
+                    phone: "021-66778899",
+                    owner: "رضا کریمی",
+                    sales: "8,750,000 تومان",
+                    rating: "4.2/5"
+                },
+                {
+                    id: 3,
+                    name: "مینی‌مارکت بهروز",
+                    type: "convenience",
+                    lat: 35.7312,
+                    lng: 51.4410,
+                    address: "میدان ونک، خیابان ملاصدرا",
+                    phone: "021-88776655",
+                    owner: "مریم حسینی",
+                    sales: "6,500,000 تومان",
+                    rating: "4.5/5"
+                },
+                {
+                    id: 4,
+                    name: "هایپر مارکت کوروش",
+                    type: "hypermarket",
+                    lat: 35.7452,
+                    lng: 51.5010,
+                    address: "شهرک غرب، بلوار فرحزادی",
+                    phone: "021-88552233",
+                    owner: "شرکت کوروش",
+                    sales: "45,800,000 تومان",
+                    rating: "4.8/5"
+                },
+                {
+                    id: 5,
+                    name: "سوپرمارکت رضوی",
+                    type: "supermarket",
+                    lat: 35.6812,
+                    lng: 51.4210,
+                    address: "میدان امام حسین، خیابان 17 شهریور",
+                    phone: "021-77445566",
+                    owner: "محمد رضوی",
+                    sales: "12,300,000 تومان",
+                    rating: "4.3/5"
+                },
+                {
+                    id: 6,
+                    name: "بقالی شایان",
+                    type: "grocery",
+                    lat: 35.7212,
+                    lng: 51.3710,
+                    address: "میدان رسالت، خیابان دلاوران",
+                    phone: "021-55667788",
+                    owner: "علی شایانی",
+                    sales: "7,800,000 تومان",
+                    rating: "4.0/5"
+                }
+            ];
+            
+            // Create markers for each store
+            const markers = [];
+            stores.forEach(store => {
+                // Create custom marker based on store type
+                const markerClass = `marker-${store.type}`;
+                const customIcon = L.divIcon({
+                    className: `custom-marker ${markerClass}`,
+                    html: `<i class="bi bi-shop"></i>`,
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 18]
+                });
+                
+                const marker = L.marker([store.lat, store.lng], { icon: customIcon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div class="text-center">
+                            <h6>${store.name}</h6>
+                            <p class="mb-1">${store.address}</p>
+                            <small>فروش ماه: ${store.sales}</small>
+                        </div>
+                    `);
+                
+                // Store reference to marker and store data
+                marker.storeData = store;
+                markers.push(marker);
+                
+                // Add click event to show store info
+                marker.on('click', function() {
+                    showStoreInfo(store);
+                });
+            });
+            
+            // Function to show store info
+            function showStoreInfo(store) {
+                const storeInfo = document.getElementById('storeInfo');
+                document.getElementById('storeName').textContent = store.name;
+                document.getElementById('storeAddress').textContent = store.address;
+                document.getElementById('storePhone').textContent = store.phone;
+                document.getElementById('storeOwner').textContent = store.owner;
+                document.getElementById('storeSales').textContent = `فروش ماه: ${store.sales}`;
+                document.getElementById('storeRating').textContent = `امتیاز: ${store.rating}`;
+                
+                storeInfo.style.display = 'block';
+            }
+            
+            // Filter stores by type
+            document.querySelectorAll('[data-store-type]').forEach(button => {
+                button.addEventListener('click', function() {
+                    const type = this.getAttribute('data-store-type');
+                    
+                    // Update active button
+                    document.querySelectorAll('[data-store-type]').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Show/hide markers based on type
+                    markers.forEach(marker => {
+                        if (type === 'all' || marker.storeData.type === type) {
+                            map.addLayer(marker);
+                        } else {
+                            map.removeLayer(marker);
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

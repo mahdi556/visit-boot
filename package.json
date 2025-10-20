@@ -5,11 +5,26 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "@prisma/client": "^6.17.1",
+    "bcryptjs": "^3.0.2",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
+    "leaflet": "^1.9.4",
+    "next": "15.5.6",
+    "next-auth": "^4.24.11",
+    "prisma": "^6.17.1",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "next": "15.5.6"
+    "react-dom": "19.1.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }
