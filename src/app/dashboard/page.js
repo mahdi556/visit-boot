@@ -1,11 +1,12 @@
-import StatsCards from '@/components/dashboard/StatsCards'
-import SalesChart from '@/components/dashboard/SalesChart'
-import StoreMap from '@/components/stores/StoreMap'
-import RecentOrders from '@/components/dashboard/RecentOrders'
+import StatsCards from "@/components/dashboard/StatsCards";
+import SalesChart from "@/components/dashboard/SalesChart";
+import StoreMap from "@/components/stores/StoreMap";
+import RecentOrders from "@/components/dashboard/RecentOrders";
+import TopProducts from "@/components/dashboard/TopProducts";
 
 export const metadata = {
-  title: 'داشبورد - سیستم پخش مویرگی',
-}
+  title: "داشبورد - سیستم پخش مویرگی",
+};
 
 export default function DashboardPage() {
   return (
@@ -24,18 +25,40 @@ export default function DashboardPage() {
       {/* Stats Cards */}
       <StatsCards />
 
-      {/* Charts and Maps */}
+      {/* Full Width Map Section */}
       <div className="row mb-4">
-        <div className="col-xl-8 mb-4">
-          <SalesChart />
-        </div>
-        <div className="col-xl-4 mb-4">
+        <div className="col-12">
           <StoreMap />
+        </div>
+      </div>
+
+      {/* Charts and Top Products */}
+      <div className="row mb-4">
+        {/* Sales Chart */}
+        <div className="col-xl-8 mb-4">
+          <div className="card h-100">
+            <SalesChart />
+          </div>
+        </div>
+
+        {/* Top Products */}
+        <div className="col-xl-4 mb-4">
+          <TopProducts />
         </div>
       </div>
 
       {/* Recent Orders */}
       <RecentOrders />
+
+      {/* Quick Order Button */}
+      <button
+        className="quick-order-btn"
+        id="quickOrderBtn"
+        data-bs-toggle="modal"
+        data-bs-target="#orderModal"
+      >
+        <i className="bi bi-plus-lg"></i>
+      </button>
     </div>
-  )
+  );
 }

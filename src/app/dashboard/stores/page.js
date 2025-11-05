@@ -1,8 +1,25 @@
 "use client";
 
+import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import StoreMap from "@/components/stores/StoreMap";
-import LocationPickerMap from "@/components/stores/LocationPickerMap";
+
+const LocationPickerMap = dynamic(
+  () => import("@/components/stores/LocationPickerMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "500px" }}
+      >
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">در حال بارگذاری نقشه...</span>
+        </div>
+      </div>
+    ),
+  }
+);
 
 export default function StoresPage() {
   const [stores, setStores] = useState([]);
@@ -10,8 +27,11 @@ export default function StoresPage() {
   const [showModal, setShowModal] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [editingStore, setEditingStore] = useState(null); // برای حالت ویرایش
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // برای تایید حذف
   const [formData, setFormData] = useState({
     name: "",
+    code: "", // اضافه شده
     ownerName: "",
     phone: "",
     address: "",
@@ -22,12 +42,6 @@ export default function StoresPage() {
 
   useEffect(() => {
     fetchStores();
-    return () => {
-      // Cleanup global functions when component unmounts
-      if (window.confirmSelectedLocation) {
-        delete window.confirmSelectedLocation;
-      }
-    };
   }, []);
 
   const fetchStores = async () => {
@@ -42,11 +56,59 @@ export default function StoresPage() {
     }
   };
 
+  // تابع ویرایش فروشگاه
+  const handleEdit = (store) => {
+    setEditingStore(store);
+    setFormData({
+      name: store.name,
+      code: store.code || "", // اضافه شده
+      ownerName: store.ownerName,
+      phone: store.phone,
+      address: store.address,
+      storeType: store.storeType || "SUPERMARKET",
+      latitude: store.latitude || "",
+      longitude: store.longitude || "",
+    });
+    setSelectedLocation(
+      store.latitude && store.longitude
+        ? { lat: store.latitude, lng: store.longitude }
+        : null
+    );
+    setShowModal(true);
+  };
+
+  // تابع حذف فروشگاه
+  const handleDelete = async (storeId) => {
+    try {
+      const response = await fetch(`/api/stores/${storeId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setStores(stores.filter((store) => store.id !== storeId));
+        setDeleteConfirm(null);
+        alert("فروشگاه با موفقیت حذف شد");
+      } else {
+        const error = await response.json();
+        alert(error.error || "خطا در حذف فروشگاه");
+      }
+    } catch (error) {
+      console.error("Error deleting store:", error);
+      alert("خطا در حذف فروشگاه");
+    }
+  };
+
+  // تابع ایجاد/ویرایش فروشگاه
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("/api/stores", {
-        method: "POST",
+      const url = editingStore
+        ? `/api/stores/${editingStore.id}`
+        : "/api/stores";
+      const method = editingStore ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method: method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -62,6 +124,7 @@ export default function StoresPage() {
         setFormData({
           name: "",
           ownerName: "",
+          code: "", // اضافه شده
           phone: "",
           address: "",
           storeType: "SUPERMARKET",
@@ -69,14 +132,28 @@ export default function StoresPage() {
           longitude: "",
         });
         setSelectedLocation(null);
+        setEditingStore(null);
         fetchStores();
+
+        const message = editingStore
+          ? "فروشگاه با موفقیت ویرایش شد"
+          : "فروشگاه با موفقیت ایجاد شد";
+        alert(message);
+      } else {
+        const error = await response.json();
+        alert(error.error || "خطا در ذخیره فروشگاه");
       }
     } catch (error) {
-      console.error("Error creating store:", error);
+      console.error("Error saving store:", error);
+      alert("خطا در ذخیره فروشگاه");
     }
   };
 
   const handleLocationSelect = (lat, lng) => {
+    setSelectedLocation({ lat, lng });
+  };
+
+  const handleLocationConfirm = (lat, lng) => {
     setSelectedLocation({ lat, lng });
     setShowMapModal(false);
   };
@@ -89,6 +166,22 @@ export default function StoresPage() {
       HYPERMARKET: "هایپر مارکت",
     };
     return types[type] || type;
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      ownerName: "",
+      code: "", // اضافه شده
+      phone: "",
+      address: "",
+      storeType: "SUPERMARKET",
+      latitude: "",
+      longitude: "",
+    });
+    setSelectedLocation(null);
+    setEditingStore(null);
+    setShowModal(false);
   };
 
   if (isLoading) {
@@ -107,7 +200,13 @@ export default function StoresPage() {
     <div className="container-fluid">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h1 className="h3 mb-0 fw-bold">مدیریت فروشگاه‌ها</h1>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            setEditingStore(null);
+            setShowModal(true);
+          }}
+        >
           <i className="bi bi-plus-circle me-2"></i>
           فروشگاه جدید
         </button>
@@ -115,46 +214,77 @@ export default function StoresPage() {
       <div className="row">
         {stores.map((store) => (
           <div key={store.id} className="col-md-6 col-lg-4 mb-4">
-            <div className="card h-100">
+            <div className="card h-100 store-card">
               <div className="card-body">
-                <div className="d-flex justify-content-between align-items-start mb-3">
-                  <h5 className="card-title text-primary">{store.name}</h5>
-                  <span className="badge bg-info">
-                    {getStoreTypeText(store.storeType)}
-                  </span>
-                </div>
-
-                <div className="mb-2">
-                  <i className="bi bi-person me-2 text-muted"></i>
-                  <span>{store.ownerName}</span>
-                </div>
-
-                <div className="mb-2">
-                  <i className="bi bi-telephone me-2 text-muted"></i>
-                  <span>{store.phone}</span>
-                </div>
-
-                <div className="mb-3">
-                  <i className="bi bi-geo-alt me-2 text-muted"></i>
-                  <small className="text-muted">{store.address}</small>
-                </div>
-
-                {store.latitude && store.longitude && (
-                  <div className="mb-3">
-                    <i className="bi bi-geo me-2 text-muted"></i>
-                    <small className="text-success">
-                      موقعیت روی نقشه مشخص شده
-                    </small>
+                {/* هدر کارت - قابل کلیک */}
+                <Link
+                  href={`/dashboard/stores/${store.id}`}
+                  className="text-decoration-none"
+                >
+                  <div className="d-flex justify-content-between align-items-start mb-3 cursor-pointer">
+                    <h5 className="card-title text-primary">{store.name}</h5>
+                    <span className="badge bg-info">
+                      {getStoreTypeText(store.storeType)}
+                    </span>
                   </div>
-                )}
+                </Link>
 
+                {/* اطلاعات فروشگاه - قابل کلیک */}
+                <Link
+                  href={`/dashboard/stores/${store.id}`}
+                  className="text-decoration-none text-dark"
+                >
+                  <div className="store-info">
+                    <div className="mb-2">
+                      <i className="bi bi-person me-2 text-muted"></i>
+                      <span>{store.ownerName}</span>
+                    </div>
+
+                    <div className="mb-2">
+                      <i className="bi bi-telephone me-2 text-muted"></i>
+                      <span>{store.phone}</span>
+                    </div>
+
+                    <div className="mb-3">
+                      <i className="bi bi-geo-alt me-2 text-muted"></i>
+                      <small className="text-muted">{store.address}</small>
+                    </div>
+
+                    {store.latitude && store.longitude && (
+                      <div className="mb-3">
+                        <i className="bi bi-geo me-2 text-muted"></i>
+                        <small className="text-success">
+                          موقعیت روی نقشه مشخص شده
+                        </small>
+                      </div>
+                    )}
+                  </div>
+                </Link>
+
+                {/* دکمه‌های عملیات - بدون تغییر */}
                 <div className="d-flex justify-content-between align-items-center">
                   <span className="text-muted">
                     {store._count?.orders || 0} سفارش
                   </span>
                   <div className="btn-group btn-group-sm">
-                    <button className="btn btn-outline-primary">ویرایش</button>
-                    <button className="btn btn-outline-danger">حذف</button>
+                    <button
+                      className="btn btn-outline-primary"
+                      onClick={(e) => {
+                        e.stopPropagation(); // جلوگیری از انتشار event
+                        handleEdit(store);
+                      }}
+                    >
+                      ویرایش
+                    </button>
+                    <button
+                      className="btn btn-outline-danger"
+                      onClick={(e) => {
+                        e.stopPropagation(); // جلوگیری از انتشار event
+                        setDeleteConfirm(store.id);
+                      }}
+                    >
+                      حذف
+                    </button>
                   </div>
                 </div>
               </div>
@@ -174,7 +304,7 @@ export default function StoresPage() {
           </button>
         </div>
       )}
-      {/* Modal برای افزودن فروشگاه */}
+      {/* Modal برای افزودن/ویرایش فروشگاه */}
       {showModal && (
         <div
           className="modal show d-block"
@@ -183,14 +313,13 @@ export default function StoresPage() {
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">افزودن فروشگاه جدید</h5>
+                <h5 className="modal-title">
+                  {editingStore ? "ویرایش فروشگاه" : "افزودن فروشگاه جدید"}
+                </h5>
                 <button
                   type="button"
                   className="btn-close"
-                  onClick={() => {
-                    setShowModal(false);
-                    setSelectedLocation(null);
-                  }}
+                  onClick={resetForm}
                 ></button>
               </div>
               <form onSubmit={handleSubmit}>
@@ -223,6 +352,21 @@ export default function StoresPage() {
                           }
                           required
                         />
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">کد فروشگاه</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={formData.code}
+                          onChange={(e) =>
+                            setFormData({ ...formData, code: e.target.value })
+                          }
+                          placeholder="مثلاً: ST001 یا خالی بگذارید تا خودکار تولید شود"
+                        />
+                        <div className="form-text">
+                          اگر خالی بگذارید، کد به صورت خودکار تولید می‌شود
+                        </div>
                       </div>
                       <div className="mb-3">
                         <label className="form-label">شماره تلفن</label>
@@ -258,7 +402,6 @@ export default function StoresPage() {
                         </select>
                       </div>
 
-                      {/* بخش موقعیت روی نقشه */}
                       <div className="mb-3">
                         <label className="form-label">موقعیت روی نقشه</label>
                         <div className="border rounded p-3 bg-light">
@@ -319,10 +462,7 @@ export default function StoresPage() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    onClick={() => {
-                      setShowModal(false);
-                      setSelectedLocation(null);
-                    }}
+                    onClick={resetForm}
                   >
                     انصراف
                   </button>
@@ -333,6 +473,8 @@ export default function StoresPage() {
                   >
                     {!selectedLocation
                       ? "لطفا موقعیت را انتخاب کنید"
+                      : editingStore
+                      ? "ویرایش فروشگاه"
                       : "ایجاد فروشگاه"}
                   </button>
                 </div>
@@ -342,7 +484,6 @@ export default function StoresPage() {
         </div>
       )}
       {/* Modal برای انتخاب موقعیت روی نقشه */}
-      // در بخش modal موقعیت، این تغییرات را اعمال کنید:
       {showMapModal && (
         <div
           className="modal show d-block"
@@ -357,24 +498,58 @@ export default function StoresPage() {
                   className="btn-close"
                   onClick={() => {
                     setShowMapModal(false);
-                    // Cleanup global function
-                    if (window.confirmSelectedLocation) {
-                      delete window.confirmSelectedLocation;
+                    if (window.confirmLocation) {
+                      delete window.confirmLocation;
                     }
                   }}
                 ></button>
               </div>
               <div className="modal-body p-0">
                 <LocationPickerMap
-                  onLocationSelect={(lat, lng) => {
-                    handleLocationSelect(lat, lng);
-                    // Cleanup after selection
-                    if (window.confirmSelectedLocation) {
-                      delete window.confirmSelectedLocation;
-                    }
-                  }}
+                  onLocationSelect={handleLocationSelect}
+                  onLocationConfirm={handleLocationConfirm}
                   initialLocation={selectedLocation}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal تایید حذف */}
+      {deleteConfirm && (
+        <div
+          className="modal show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title text-danger">تایید حذف</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setDeleteConfirm(null)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p>آیا از حذف این فروشگاه اطمینان دارید؟</p>
+                <p className="text-muted small">این عمل غیرقابل بازگشت است.</p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setDeleteConfirm(null)}
+                >
+                  انصراف
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => handleDelete(deleteConfirm)}
+                >
+                  حذف فروشگاه
+                </button>
               </div>
             </div>
           </div>

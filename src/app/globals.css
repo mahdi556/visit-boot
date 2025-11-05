@@ -447,3 +447,292 @@ body {
     font-size: 1.5rem;
   }
 }
+/* Map Container */
+.map-container {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.store-info {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-width: 320px;
+  display: none;
+}
+
+.store-info h5 {
+  color: #6C63FF;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.store-details {
+  font-size: 0.9rem;
+}
+
+.store-details i {
+  margin-left: 8px;
+  color: #6C63FF;
+}
+
+/* Filter Buttons */
+.filter-btn {
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 1px solid #dee2e6;
+  background: white;
+  color: #6c757d;
+}
+
+.filter-btn.active,
+.filter-btn:hover {
+  background: #6C63FF;
+  color: white;
+  border-color: #6C63FF;
+}
+
+/* Leaflet Styles */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+  border-radius: 12px;
+}
+
+/* آیکون‌های دایره‌ای */
+.custom-store-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* اطمینان از دایره‌ای بودن آیکون‌ها */
+.custom-store-marker div {
+  border-radius: 50% !important;
+  -webkit-border-radius: 50% !important;
+  -moz-border-radius: 50% !important;
+}
+
+/* Marker Colors */
+.marker-supermarket div {
+  background-color: #6C63FF !important;
+}
+
+.marker-grocery div {
+  background-color: #36D1DC !important;
+}
+
+.marker-convenience div {
+  background-color: #FF6584 !important;
+}
+
+.marker-hypermarket div {
+  background-color: #4A44C6 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .store-info {
+    position: relative;
+    top: auto;
+    left: auto;
+    max-width: 100%;
+    margin: 15px;
+    display: none;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  
+  .card-header .btn-group {
+    margin-top: 10px;
+    align-self: flex-end;
+  }
+}
+
+/* اضافه کردن استایل برای تضمین دایره‌ای بودن */
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-marker-icon .custom-store-marker div {
+  border-radius: 50% !important;
+}
+/* در فایل globals.css */
+.search-results .dropdown-item.active {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.search-results .dropdown-item.active .text-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.search-results .dropdown-item.active .badge {
+  background-color: white !important;
+  color: #0d6efd !important;
+}
+
+/* بهبود ظاهر navigation hint */
+.search-results .dropdown-item:last-child {
+  background-color: #f8f9fa;
+  border-top: 1px solid #dee2e6;
+  cursor: default;
+}
+
+.search-results .dropdown-item:last-child:hover {
+  background-color: #f8f9fa;
+}
+
+  
+/* استایل‌های مخصوص فاکتور */
+@media print {
+  .invoice-container {
+    font-size: 10px !important;
+    padding: 5px !important;
+  }
+  
+  .table {
+    font-size: 8px !important;
+  }
+  
+  .modal-header,
+  .modal-footer,
+  .btn {
+    display: none !important;
+  }
+  
+  .page-break {
+    page-break-after: always;
+  }
+  
+  /* بهبود ظاهر جداول در پرینت */
+  .table-bordered th,
+  .table-bordered td {
+    border: 1px solid #000 !important;
+    padding: 3px !important;
+  }
+}
+
+/* استایل‌های عمومی فاکتور */
+.invoice-container .table th {
+  background-color: #f8f9fa !important;
+  font-weight: bold;
+  text-align: center;
+}
+
+.invoice-container .table-responsive {
+  margin-bottom: 10px;
+}
+
+/* خطوط امضا */
+.signatures .border-top {
+  border-top: 2px solid #000 !important;
+}
+/* استایل‌های مخصوص فیش پرینتر */
+@media print {
+  .receipt-container {
+    width: 280px !important;
+    margin: 0 auto !important;
+    padding: 5px !important;
+    font-size: 12px !important;
+    border: none !important;
+  }
+  
+  .modal-header,
+  .modal-footer,
+  .btn {
+    display: none !important;
+  }
+  
+  /* بهبود چاپ برای فیش */
+  .receipt-container * {
+    color: #000 !important;
+    background: #fff !important;
+  }
+}
+
+/* استایل‌های نمایشی */
+.receipt-container {
+  font-family: 'Courier New', monospace;
+  direction: rtl;
+}
+
+.receipt-container .row {
+  margin: 0;
+  padding: 0;
+}
+
+/* خطوط چین دار برای ظاهر فیش */
+.receipt-container .dashed-border {
+  border-bottom: 1px dashed #000;
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+}
+/* در فایل globals.css یا یک فایل CSS جدا */
+.delivery-zone-polygon {
+  transition: all 0.3s ease;
+}
+
+.delivery-zone-polygon:hover {
+  filter: brightness(1.1);
+  transform: scale(1.01);
+}
+
+.new-zone {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(108, 99, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(108, 99, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(108, 99, 255, 0);
+  }
+}
+
+.custom-store-icon {
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-5px);
+  }
+  60% {
+    transform: translateY(-3px);
+  }
+}
+
+/* استایل برای کنترل‌های رسم */
+.leaflet-draw-toolbar {
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+  border-radius: 8px !important;
+}
+
+.leaflet-draw-toolbar a {
+  background: linear-gradient(135deg, #6C63FF, #4A44C6) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  margin: 2px !important;
+}

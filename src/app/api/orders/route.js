@@ -1,12 +1,26 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/database'
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const storeCode = searchParams.get('storeCode'); // تغییر از storeId به storeCode
+    
+    // ساخت شرط where بر اساس storeCode
+    let where = {};
+    if (storeCode) {
+      where.storeCode = storeCode; // حذف parseInt چون storeCode رشته است
+    }
+
     const orders = await prisma.order.findMany({
+      where, // اضافه کردن شرط فیلتر
       include: {
         store: {
-          select: { name: true }
+          select: { 
+            id: true,
+            code: true, // اضافه شده
+            name: true 
+          }
         },
         user: {
           select: { firstName: true, lastName: true }
@@ -14,7 +28,11 @@ export async function GET() {
         items: {
           include: {
             product: {
-              select: { name: true }
+              select: { 
+                id: true,
+                code: true, // اضافه شده
+                name: true 
+              }
             }
           }
         }
@@ -30,21 +48,47 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json()
+    
+    // تبدیل items برای استفاده از productCode
+    const orderItems = body.items.map(item => ({
+      productCode: item.productCode, // تغییر از productId به productCode
+      quantity: item.quantity,
+      price: item.price,
+      totalPrice: item.quantity * item.price
+    }));
+
     const order = await prisma.order.create({
       data: {
-        storeId: body.storeId,
+        storeCode: body.storeCode, // تغییر از storeId به storeCode
         userId: body.userId,
         totalAmount: body.totalAmount,
         status: body.status || 'PENDING',
+        notes: body.notes,
         items: {
-          create: body.items
+          create: orderItems
         }
       },
       include: {
-        store: true,
+        store: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            address: true,
+            phone: true
+          }
+        },
         items: {
           include: {
-            product: true
+            product: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                unit: true,
+                price: true
+              }
+            }
           }
         }
       }

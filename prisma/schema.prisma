@@ -1,5 +1,4 @@
-// prisma/schema.prisma
-
+// 📂 prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -16,6 +15,7 @@ model User {
   password  String
   firstName String
   lastName  String
+  phone     String?
   role      String   @default("USER")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -24,50 +24,149 @@ model User {
 }
 
 model Product {
-  id        Int      @id @default(autoincrement())
-  name      String
-  price     Float
-  category  String
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  price       Float?
+  category    String?
+  weight      Float?
+  unit        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems   OrderItem[]
+  pricingPlans PricingPlanProduct[]
+}
+
+model Route {
+  id          Int     @id @default(autoincrement())
+  name        String
+  driverName  String?
+  vehicleType String?
+  color       String  @default("#6C63FF")
+  isActive    Boolean @default(true)
+
+  coordinates Json?
+  area        Float?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orderItems OrderItem[]
+  stores     Store[]
+  deliveries Delivery[]
+}
+
+model Delivery {
+  id           Int      @id @default(autoincrement())
+  routeId      Int
+  storeCode    String
+  deliveryDate DateTime
+  status       String   @default("PENDING")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  route Route @relation(fields: [routeId], references: [id])
+  store Store @relation(fields: [storeCode], references: [code])
 }
 
 model Store {
   id        Int      @id @default(autoincrement())
+  code      String   @unique
   name      String
-  ownerName String
-  phone     String
+  ownerName String?
+  phone     String?
   address   String
+  storeType String   @default("SUPERMARKET")
+  latitude  Float?
+  longitude Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders Order[]
+  orders         Order[]
+  deliveryZone   DeliveryZone? @relation(fields: [deliveryZoneId], references: [id])
+  deliveryZoneId Int?
+  route          Route?        @relation(fields: [routeId], references: [id])
+  routeId        Int?
+  deliveries     Delivery[]
 }
 
 model Order {
-  id          Int      @id @default(autoincrement())
-  storeId     Int
-  userId      Int
-  totalAmount Float
-  status      String   @default("PENDING")
-  orderDate   DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  storeCode     String
+  userId        Int
+  totalAmount   Float
+  status        String   @default("PENDING")
+  notes         String?
+  orderDate     DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  pricingPlanId Int?
+  totalDiscount Float?   @default(0)
+  finalAmount   Float? // totalAmount - totalDiscount
 
-  store Store       @relation(fields: [storeId], references: [id])
+  pricingPlan PricingPlan? @relation(fields: [pricingPlanId], references: [id])
+
+  store Store       @relation(fields: [storeCode], references: [code])
   user  User        @relation(fields: [userId], references: [id])
   items OrderItem[]
+
+  @@map("orders")
 }
 
 model OrderItem {
-  id        Int   @id @default(autoincrement())
-  orderId   Int
-  productId Int
-  quantity  Int
-  price     Float
+  id          Int    @id @default(autoincrement())
+  orderId     Int
+  productCode String
+  quantity    Int
+  price       Float
+  totalPrice  Float?
 
   order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productCode], references: [code])
+
+  @@map("order_items")
+}
+
+model DeliveryZone {
+  id           Int      @id @default(autoincrement())
+  name         String
+  coordinates  Json
+  deliveryCost Float
+  deliveryTime Int
+  color        String   @default("#6C63FF")
+  area         Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  stores Store[]
+}
+
+model PricingPlan {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  planProducts PricingPlanProduct[]
+  orders       Order[]
+}
+
+model PricingPlanProduct {
+  id            Int     @id @default(autoincrement())
+  pricingPlanId Int
+  productCode   String
+  minQuantity   Int
+  discountRate  Float // تغییر از unitPrice به discountRate
+  description   String?
+
+  pricingPlan PricingPlan @relation(fields: [pricingPlanId], references: [id])
+  product     Product     @relation(fields: [productCode], references: [code])
+
+  @@unique([pricingPlanId, productCode, minQuantity])
 }
