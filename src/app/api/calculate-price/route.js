@@ -14,68 +14,56 @@ export async function POST(request) {
         appliedPlan: null,
         appliedTier: null,
         itemPrices: [],
+        groupDiscounts: [],
       });
     }
 
-    // استخراج کدهای محصولات از سبد خرید
     const productCodes = cartItems.map((item) => item.product.code);
 
-    // دریافت طرح‌های قیمت‌گذاری برای محصولات سبد خرید
-    const pricingPlans = await prisma.pricingPlanProduct.findMany({
+    // 1. دریافت طرح‌های قیمت‌گذاری جداگانه
+    const individualPricingPlans = await prisma.pricingPlanProduct.findMany({
       where: {
-        productCode: {
-          in: productCodes,
-        },
-        pricingPlan: {
-          isActive: true,
-          startDate: { lte: new Date() },
-          OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
-        },
+        productCode: { in: productCodes },
+        pricingPlan: { isActive: true },
       },
-      include: {
-        pricingPlan: true,
-        product: true,
-      },
-      orderBy: [{ productCode: "asc" }, { minQuantity: "desc" }],
+      include: { pricingPlan: true, product: true },
     });
 
-    // محاسبه قیمت برای هر محصول
+    // 2. دریافت گروه‌های تخفیف فعال
+    const discountGroups = await prisma.discountGroup.findMany({
+      where: { isActive: true },
+      include: {
+        groupProducts: {
+          include: { product: true },
+        },
+        groupTiers: {
+          orderBy: { minQuantity: "desc" },
+        },
+      },
+    });
+
+    // محاسبه قیمت پایه
     const itemPrices = cartItems.map((item) => {
       const consumerPrice = item.product.price;
-      const storeBasePrice = Math.round(consumerPrice * (1 - 0.123)); // 12.3% تخفیف پایه
+      const storeBasePrice = Math.round(consumerPrice * (1 - 0.123));
 
-      // پیدا کردن طرح‌های قیمت‌گذاری برای این محصول
-      const productPricingPlans = pricingPlans.filter(
+      const productPlans = individualPricingPlans.filter(
         (plan) => plan.productCode === item.product.code
       );
 
-      // پیدا کردن مناسب‌ترین طرح بر اساس تعداد
-      const applicablePlan = productPricingPlans.find(
+      const applicablePlan = productPlans.find(
         (plan) => item.quantity >= plan.minQuantity
       );
 
       let finalUnitPrice = storeBasePrice;
       let appliedDiscountRate = 0;
-      let appliedPlan = null;
 
       if (applicablePlan) {
-        appliedDiscountRate = applicablePlan.discountRate; // استفاده از discountRate
+        appliedDiscountRate = applicablePlan.discountRate;
         finalUnitPrice = Math.round(
           storeBasePrice * (1 - applicablePlan.discountRate)
         );
-        appliedPlan = {
-          id: applicablePlan.id,
-          name: applicablePlan.pricingPlan.name,
-          description:
-            applicablePlan.description ||
-            `تخفیف ${Math.round(
-              applicablePlan.discountRate * 100
-            )}% برای خرید ${applicablePlan.minQuantity}+ عدد`,
-        };
       }
-      const discountAmount = Math.round(
-        (storeBasePrice - finalUnitPrice) * item.quantity
-      );
 
       return {
         productCode: item.product.code,
@@ -83,42 +71,119 @@ export async function POST(request) {
         quantity: item.quantity,
         consumerPrice: consumerPrice,
         storeBasePrice: storeBasePrice,
-        appliedDiscountRate: appliedDiscountRate,
         unitPrice: finalUnitPrice,
         totalPrice: finalUnitPrice * item.quantity,
-        discountAmount: discountAmount,
-        appliedPlan: appliedPlan,
+        appliedDiscountRate: appliedDiscountRate,
+        discountGroups: [], // برای ذخیره گروه‌هایی که این محصول در آن است
       };
     });
 
-    // محاسبه جمع کل
-    const subtotal = itemPrices.reduce((sum, item) => sum + item.totalPrice, 0);
-    const totalDiscount = itemPrices.reduce(
-      (sum, item) => sum + item.discountAmount,
+    // 3. محاسبه تخفیف‌های گروهی
+    const groupDiscounts = [];
+    let totalGroupDiscount = 0;
+
+    discountGroups.forEach((group) => {
+      const groupProductCodes = group.groupProducts.map((gp) => gp.productCode);
+      const groupCartItems = cartItems.filter((item) =>
+        groupProductCodes.includes(item.product.code)
+      );
+
+      if (groupCartItems.length > 0) {
+        const totalGroupQuantity = groupCartItems.reduce(
+          (sum, item) => sum + item.quantity,
+          0
+        );
+
+        // پیدا کردن بهترین تخفیف قابل اعمال (بیشترین تعداد)
+        const applicableTiers = group.groupTiers
+          .filter((tier) => totalGroupQuantity >= tier.minQuantity)
+          .sort((a, b) => b.minQuantity - a.minQuantity); // بیشترین تعداد اول
+
+        const bestTier = applicableTiers[0]; // بهترین تخفیف
+
+        if (bestTier) {
+          const groupSubtotal = groupCartItems.reduce((sum, item) => {
+            const itemPrice = itemPrices.find(
+              (ip) => ip.productCode === item.product.code
+            );
+            return sum + (itemPrice ? itemPrice.totalPrice : 0);
+          }, 0);
+
+          const groupDiscountAmount = groupSubtotal * bestTier.discountRate;
+          totalGroupDiscount += groupDiscountAmount;
+
+          groupDiscounts.push({
+            groupId: group.id,
+            groupName: group.name,
+            totalQuantity: totalGroupQuantity,
+            appliedTier: bestTier,
+            discountRate: bestTier.discountRate,
+            discountAmount: groupDiscountAmount,
+            description: `تخفیف ${Math.round(
+              bestTier.discountRate * 100
+            )}% برای خرید ${totalGroupQuantity} عدد از گروه ${
+              group.name
+            } (حداقل ${bestTier.minQuantity} عدد)`,
+            products: groupCartItems.map((item) => ({
+              productCode: item.product.code,
+              productName: item.product.name,
+              quantity: item.quantity,
+            })),
+          });
+
+          // توزیع تخفیف گروهی بین محصولات به نسبت قیمت
+          const totalGroupBasePrice = groupCartItems.reduce((sum, item) => {
+            const itemPrice = itemPrices.find(
+              (ip) => ip.productCode === item.product.code
+            );
+            return (
+              sum + (itemPrice ? itemPrice.storeBasePrice * item.quantity : 0)
+            );
+          }, 0);
+
+          groupCartItems.forEach((cartItem) => {
+            const itemPrice = itemPrices.find(
+              (ip) => ip.productCode === cartItem.product.code
+            );
+            if (itemPrice) {
+              const itemShare =
+                (itemPrice.storeBasePrice * cartItem.quantity) /
+                totalGroupBasePrice;
+              const itemDiscount = groupDiscountAmount * itemShare;
+
+              itemPrice.totalPrice -= itemDiscount;
+              itemPrice.unitPrice = itemPrice.totalPrice / cartItem.quantity;
+              itemPrice.discountGroups.push({
+                groupId: group.id,
+                groupName: group.name,
+                discountAmount: itemDiscount,
+                discountRate: bestTier.discountRate,
+              });
+            }
+          });
+        }
+      }
+    });
+
+    // محاسبه نهایی
+    const subtotal = itemPrices.reduce(
+      (sum, item) => sum + item.storeBasePrice * item.quantity,
       0
     );
-
-    // پیدا کردن محصول با بیشترین تخفیف
-    const maxDiscountItem = itemPrices.reduce(
-      (max, item) =>
-        item.appliedDiscountRate > max.appliedDiscountRate ? item : max,
-      { appliedDiscountRate: 0 }
+    const finalAmount = itemPrices.reduce(
+      (sum, item) => sum + item.totalPrice,
+      0
     );
-
-    const overallAppliedPlan = maxDiscountItem.appliedPlan
-      ? {
-          id: maxDiscountItem.appliedPlan.id,
-          name: "طرح‌های تخفیف پلکانی",
-          description: maxDiscountItem.appliedPlan.description,
-        }
-      : null;
+    const totalDiscount = subtotal - finalAmount;
 
     return NextResponse.json({
       subtotal: Math.round(subtotal),
       discount: Math.round(totalDiscount),
-      finalAmount: Math.round(subtotal),
-      appliedPlan: overallAppliedPlan,
+      finalAmount: Math.round(finalAmount),
+      appliedPlan: null, // در این نسخه تمرکز روی گروه‌هاست
       itemPrices: itemPrices,
+      groupDiscounts: groupDiscounts,
+      totalGroupDiscount: Math.round(totalGroupDiscount),
     });
   } catch (error) {
     console.error("Error calculating pricing:", error);

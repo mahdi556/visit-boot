@@ -35,8 +35,9 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orderItems   OrderItem[]
-  pricingPlans PricingPlanProduct[]
+  orderItems     OrderItem[]
+  pricingPlans   PricingPlanProduct[]
+  discountGroups DiscountGroupProduct[] // اضافه کردن رابطه معکوس
 }
 
 model Route {
@@ -162,11 +163,47 @@ model PricingPlanProduct {
   pricingPlanId Int
   productCode   String
   minQuantity   Int
-  discountRate  Float // تغییر از unitPrice به discountRate
+  discountRate  Float   @default(0)
   description   String?
 
   pricingPlan PricingPlan @relation(fields: [pricingPlanId], references: [id])
   product     Product     @relation(fields: [productCode], references: [code])
 
   @@unique([pricingPlanId, productCode, minQuantity])
+}
+
+// مدل‌های جدید برای گروه‌های تخفیف
+model DiscountGroup {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  groupProducts DiscountGroupProduct[]
+  groupTiers    DiscountGroupTier[]
+}
+
+model DiscountGroupProduct {
+  id              Int    @id @default(autoincrement())
+  discountGroupId Int
+  productCode     String
+
+  discountGroup DiscountGroup @relation(fields: [discountGroupId], references: [id])
+  product       Product       @relation(fields: [productCode], references: [code])
+
+  @@unique([discountGroupId, productCode])
+}
+
+model DiscountGroupTier {
+  id              Int     @id @default(autoincrement())
+  discountGroupId Int
+  minQuantity     Int // حداقل تعداد از گروه
+  discountRate    Float // درصد تخفیف
+  description     String?
+
+  discountGroup DiscountGroup @relation(fields: [discountGroupId], references: [id])
+
+  @@unique([discountGroupId, minQuantity])
 }

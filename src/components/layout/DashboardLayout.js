@@ -15,6 +15,7 @@ export default function DashboardLayout({ children }) {
     { name: "سفارشات", href: "/dashboard/orders", icon: "bi-cart-check" },
     { name: "مشتریان", href: "/dashboard/stores", icon: "bi-people" },
     { name: "محصولات", href: "/dashboard/products", icon: "bi-box-seam" },
+    { name: "طرح های فروش", href: "/dashboard/discount-groups", icon: "bi-box-seam" },
     {
       name: "مسیرها و مناطق",
       href: "/dashboard/routes-and-areas",
