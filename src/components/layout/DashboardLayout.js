@@ -16,6 +16,7 @@ export default function DashboardLayout({ children }) {
     { name: "مشتریان", href: "/dashboard/stores", icon: "bi-people" },
     { name: "محصولات", href: "/dashboard/products", icon: "bi-box-seam" },
     { name: "طرح های فروش", href: "/dashboard/discount-groups", icon: "bi-box-seam" },
+    { name: "کاتالوگ محصولات", href: "/dashboard/catalog", icon: "bi-grid-3x3-gap" },
     {
       name: "مسیرها و مناطق",
       href: "/dashboard/routes-and-areas",
@@ -49,7 +50,7 @@ export default function DashboardLayout({ children }) {
           <div className="sidebar-brand">
             <div className="d-flex align-items-center justify-content-center">
               <i className="bi bi-shop-window brand-icon"></i>
-              <span className="brand-text">پخش مویرگی</span>
+              <span className="brand-text">نبات نگین آرا</span>
             </div>
           </div>
 
@@ -102,7 +103,7 @@ export default function DashboardLayout({ children }) {
 
             <a className="navbar-brand" href="#">
               <i className="bi bi-shop-window me-2"></i>
-              پخش مویرگی
+              نبات نگین آرا
             </a>
 
             <div className="d-flex ms-auto">

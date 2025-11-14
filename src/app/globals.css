@@ -736,3 +736,59 @@ body {
   border-radius: 6px !important;
   margin: 2px !important;
 }
+
+ /* اضافه کردن CSS برای استایل زیبا */
+.product-card {
+  transition: all 0.3s ease;
+  border: none;
+  overflow: hidden;
+}
+
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.product-card .card-img-top {
+  transition: transform 0.3s ease;
+}
+
+.product-card:hover .card-img-top {
+  transform: scale(1.05);
+}
+
+/* استایل برای بدج‌ها */
+.badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* استایل برای overlay قیمت */
+.card-img-overlay {
+  background: linear-gradient(transparent 40%, rgba(0,0,0,0.8));
+}
+
+/* استایل برای دکمه‌ها */
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+/* انیمیشن برای مودال */
+.modal-content {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+/* استایل برای input تعداد */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

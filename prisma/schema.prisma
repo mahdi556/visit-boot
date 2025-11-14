@@ -32,12 +32,13 @@ model Product {
   weight      Float?
   unit        String
   description String?
+  image       String?  // اضافه کردن فیلد عکس
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orderItems     OrderItem[]
-  pricingPlans   PricingPlanProduct[]
-  discountGroups DiscountGroupProduct[] // اضافه کردن رابطه معکوس
+  orderItems OrderItem[]
+  pricingPlans PricingPlanProduct[]
+  discountGroups DiscountGroupProduct[]
 }
 
 model Route {
