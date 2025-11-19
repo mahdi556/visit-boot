@@ -1,8 +1,8 @@
 import "bootstrap/dist/css/bootstrap.css";
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import 'leaflet/dist/leaflet.css';
-import "./globals.css";
 import BootstrapClient from "@/components/BootstrapClient";
+import "./globals.css";
 export const metadata = {
   title: "سیستم پخش مویرگی",
   description: "سیستم مدیریت پخش مویرگی محصولات",

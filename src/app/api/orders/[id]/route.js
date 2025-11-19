@@ -1,37 +1,32 @@
+// 📂 src/app/api/orders/[id]/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/database";
 
 export async function GET(request, { params }) {
   try {
-    console.log("🔍 API called with ID:", params.id);
-
-    // تبدیل id از string به number
-    const orderId = parseInt(params.id);
-
+    // await کردن params
+    const { id } = await params;
+    const orderId = parseInt(id);
+    
     if (isNaN(orderId)) {
-      return NextResponse.json(
-        { error: "شناسه سفارش نامعتبر است" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "شناسه سفارش نامعتبر است" }, { status: 400 });
     }
 
-    // استفاده از select به جای include برای مدیریت null ها
+    // کوئری بسیار ساده بدون هیچ رابطه user
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       select: {
         id: true,
-        storeCode: true,
-        userId: true,
-        salesRepId: true,
         totalAmount: true,
         status: true,
-        notes: true,
         orderDate: true,
         createdAt: true,
-        updatedAt: true,
+        storeCode: true,
+        salesRepId: true,
+        userId: true,
+        notes: true,
         totalDiscount: true,
         finalAmount: true,
-        pricingPlanId: true,
         store: {
           select: {
             id: true,
@@ -39,18 +34,9 @@ export async function GET(request, { params }) {
             name: true,
             address: true,
             phone: true,
-            ownerName: true
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            email: true,
-            username: true
-          }
+            ownerName: true,
+            storeType: true,
+          },
         },
         salesRep: {
           select: {
@@ -58,204 +44,135 @@ export async function GET(request, { params }) {
             code: true,
             name: true,
             phone: true,
-            email: true
-          }
+            email: true,
+            isActive: true,
+          },
         },
         items: {
-          include: {
+          select: {
+            id: true,
+            productCode: true,
+            quantity: true,
+            price: true,
             product: {
               select: {
                 id: true,
                 code: true,
                 name: true,
                 price: true,
-                weight: true,
                 unit: true,
                 category: true,
               },
             },
           },
         },
-        pricingPlan: {
-          select: {
-            id: true,
-            name: true,
-            description: true
-          }
-        }
       },
-    });
-
-    console.log("✅ Found order:", {
-      id: order?.id,
-      hasUser: !!order?.user,
-      hasSalesRep: !!order?.salesRep
     });
 
     if (!order) {
       return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
     }
 
-    // پردازش داده‌ها برای مدیریت مقادیر null
-    const processedOrder = {
+    // ساخت پاسخ بدون user
+    const response = {
       ...order,
-      user: order.user || { 
-        firstName: 'کاربر', 
-        lastName: 'حذف شده',
-        email: 'ثبت نشده',
-        username: 'ثبت نشده'
+      user: {
+        id: order.userId || 0,
+        firstName: "سیستم",
+        lastName: "اتوماسیون",
+        username: "system",
+        role: "SYSTEM"
       }
     };
 
-    return NextResponse.json(processedOrder);
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("❌ Error in order API:", error);
-    
-    // راه حل جایگزین
-    try {
-      console.log("🔄 Trying alternative query...");
-      
-      const orderId = parseInt(params.id);
-      
-      // کوئری ساده‌تر
-      const simpleOrder = await prisma.order.findUnique({
-        where: { id: orderId },
-        select: {
-          id: true,
-          storeCode: true,
-          userId: true,
-          salesRepId: true,
-          totalAmount: true,
-          status: true,
-          notes: true,
-          orderDate: true,
-          createdAt: true,
-          store: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-              address: true,
-              phone: true
-            }
-          },
-          salesRep: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-              phone: true
-            }
-          },
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  code: true,
-                  name: true,
-                  price: true,
-                  unit: true
-                }
-              }
-            }
-          }
-        }
-      });
-
-      if (!simpleOrder) {
-        return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
-      }
-
-      // پیدا کردن اطلاعات user جداگانه
-      let user = null;
-      if (simpleOrder.userId) {
-        user = await prisma.user.findUnique({
-          where: { id: simpleOrder.userId },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            email: true,
-            username: true
-          }
-        });
-      }
-
-      const processedOrder = {
-        ...simpleOrder,
-        user: user || { 
-          firstName: 'کاربر', 
-          lastName: 'سیستم',
-          email: 'ثبت نشده',
-          username: 'ثبت نشده'
-        }
-      };
-
-      console.log("✅ Alternative query successful");
-      return NextResponse.json(processedOrder);
-
-    } catch (fallbackError) {
-      console.error("❌ Fallback also failed:", fallbackError);
-      
-      return NextResponse.json(
-        { error: "خطا در دریافت سفارش: " + fallbackError.message },
-        { status: 500 }
-      );
-    }
+    console.error("❌ Error in order detail API:", error);
+    return NextResponse.json({ error: "خطا در دریافت اطلاعات سفارش" }, { status: 500 });
   }
 }
 
-// 📂 بخش PUT
 export async function PUT(request, { params }) {
   try {
-    const body = await request.json();
-    const orderId = parseInt(params.id);
-
+    // await کردن params
+    const { id } = await params;
+    const orderId = parseInt(id);
+    
     if (isNaN(orderId)) {
-      return NextResponse.json(
-        { error: "شناسه سفارش نامعتبر است" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "شناسه سفارش نامعتبر است" }, { status: 400 });
     }
 
-    const result = await prisma.$transaction(async (prisma) => {
-      await prisma.orderItem.deleteMany({
-        where: { orderId: orderId },
+    const body = await request.json();
+    console.log("📝 Updating order:", { orderId, body });
+
+    // بررسی وجود سفارش
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, salesRepId: true }
+    });
+
+    if (!existingOrder) {
+      return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
+    }
+
+    // آماده سازی داده‌ها برای آپدیت
+    const updateData = {
+      status: body.status,
+      notes: body.notes || '',
+      totalAmount: parseFloat(body.totalAmount) || 0,
+      finalAmount: parseFloat(body.finalAmount) || parseFloat(body.totalAmount) || 0,
+      totalDiscount: parseFloat(body.totalDiscount) || 0,
+    };
+
+    // اگر salesRepId ارسال شده، آن را اضافه کن
+    if (body.salesRepId !== undefined) {
+      updateData.salesRepId = body.salesRepId;
+    }
+
+    // اگر storeCode ارسال شده، آن را اضافه کن
+    if (body.storeCode) {
+      updateData.storeCode = body.storeCode;
+    }
+
+    // شروع تراکنش برای آپدیت ایمن
+    const result = await prisma.$transaction(async (tx) => {
+      // حذف آیتم‌های قدیمی
+      await tx.orderItem.deleteMany({
+        where: { orderId }
       });
 
-      const orderItems = body.items.map((item) => ({
-        productCode: item.productCode,
-        quantity: item.quantity,
-        price: item.price,
-        totalPrice: item.quantity * item.price
-      }));
+      // ایجاد آیتم‌های جدید
+      if (body.items && body.items.length > 0) {
+        await tx.orderItem.createMany({
+          data: body.items.map(item => ({
+            orderId: orderId,
+            productCode: item.productCode,
+            quantity: parseInt(item.quantity) || 1,
+            price: parseFloat(item.price) || 0,
+            totalPrice: (parseInt(item.quantity) || 1) * (parseFloat(item.price) || 0),
+          }))
+        });
+      }
 
-      const order = await prisma.order.update({
+      // آپدیت سفارش
+      const updatedOrder = await tx.order.update({
         where: { id: orderId },
-        data: {
-          storeCode: body.storeCode,
-          salesRepId: body.salesRepId,
-          status: body.status,
-          totalAmount: body.totalAmount,
-          totalDiscount: body.discountAmount || 0,
-          finalAmount: body.finalAmount || body.totalAmount,
-          notes: body.notes,
-          items: {
-            create: orderItems,
-          },
-        },
+        data: updateData,
+      });
+
+      // دریافت اطلاعات کامل سفارش به صورت جداگانه
+      const fullOrder = await tx.order.findUnique({
+        where: { id: orderId },
         select: {
           id: true,
-          storeCode: true,
-          userId: true,
-          salesRepId: true,
           totalAmount: true,
           status: true,
-          notes: true,
           orderDate: true,
           createdAt: true,
+          storeCode: true,
+          salesRepId: true,
+          userId: true,
+          notes: true,
           totalDiscount: true,
           finalAmount: true,
           store: {
@@ -263,81 +180,108 @@ export async function PUT(request, { params }) {
               id: true,
               code: true,
               name: true,
-              address: true
-            }
+              address: true,
+              phone: true,
+              ownerName: true,
+              storeType: true,
+            },
           },
           salesRep: {
             select: {
               id: true,
               code: true,
-              name: true
-            }
-          },
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
+              name: true,
+              phone: true,
               email: true,
-              username: true,
+              isActive: true,
             },
           },
           items: {
-            include: {
+            select: {
+              id: true,
+              productCode: true,
+              quantity: true,
+              price: true,
               product: {
                 select: {
                   id: true,
                   code: true,
                   name: true,
+                  price: true,
                   unit: true,
-                  price: true
-                }
+                  category: true,
+                },
               },
             },
           },
         },
       });
 
-      return order;
+      return fullOrder;
     });
 
-    return NextResponse.json(result);
+    // ساخت پاسخ نهایی
+    const response = {
+      ...result,
+      user: {
+        id: result.userId || 0,
+        firstName: "سیستم",
+        lastName: "اتوماسیون",
+        username: "system",
+        role: "SYSTEM"
+      }
+    };
+
+    console.log("✅ Order updated successfully:", orderId);
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("Error updating order:", error);
-    return NextResponse.json(
-      { error: "خطا در بروزرسانی سفارش: " + error.message },
-      { status: 500 }
-    );
+    console.error("❌ Error updating order:", error);
+    
+    // مدیریت خطاهای خاص Prisma
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
+    }
+    
+    if (error.code === 'P2003') {
+      return NextResponse.json({ error: "فروشگاه یا ویزیتور نامعتبر است" }, { status: 400 });
+    }
+
+    return NextResponse.json({ error: "خطا در بروزرسانی سفارش" }, { status: 500 });
   }
 }
 
 export async function DELETE(request, { params }) {
   try {
-    const orderId = parseInt(params.id);
-
+    // await کردن params
+    const { id } = await params;
+    const orderId = parseInt(id);
+    
     if (isNaN(orderId)) {
-      return NextResponse.json(
-        { error: "شناسه سفارش نامعتبر است" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "شناسه سفارش نامعتبر است" }, { status: 400 });
     }
 
-    // ابتدا آیتم‌های سفارش را حذف می‌کنیم
-    await prisma.orderItem.deleteMany({
-      where: { orderId: orderId },
+    // استفاده از تراکنش برای حذف ایمن
+    await prisma.$transaction(async (tx) => {
+      // حذف آیتم‌های سفارش
+      await tx.orderItem.deleteMany({
+        where: { orderId }
+      });
+
+      // حذف سفارش
+      await tx.order.delete({
+        where: { id: orderId }
+      });
     });
 
-    // سپس خود سفارش را حذف می‌کنیم
-    await prisma.order.delete({
-      where: { id: orderId },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: "سفارش با موفقیت حذف شد",
-    });
+    console.log("✅ Order deleted successfully:", orderId);
+    return NextResponse.json({ message: "سفارش با موفقیت حذف شد" });
   } catch (error) {
-    console.error("Error deleting order:", error);
+    console.error("❌ Error deleting order:", error);
+    
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
+    }
+
     return NextResponse.json({ error: "خطا در حذف سفارش" }, { status: 500 });
   }
 }

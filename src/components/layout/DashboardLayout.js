@@ -22,7 +22,6 @@ export default function DashboardLayout({ children }) {
         const userData = await response.json();
         setUser(userData);
       } else {
-        // اگر کاربر لاگین نباشد، به صفحه لاگین هدایت شود
         router.push('/auth/login');
       }
     } catch (error) {
@@ -178,33 +177,46 @@ export default function DashboardLayout({ children }) {
       <div className="main-content">
         <nav className="navbar navbar-expand-lg navbar-light fixed-top">
           <div className="container-fluid">
-            <button
-              className="btn btn-primary me-3 d-lg-none"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <i className="bi bi-list"></i>
-            </button>
+            {/* سمت راست - منوی همبرگری و برند */}
+            <div className="d-flex align-items-center">
+              <button
+                className="btn btn-primary me-2 d-lg-none"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                style={{ minWidth: '40px' }}
+              >
+                <i className="bi bi-list"></i>
+              </button>
 
-            <div className="navbar-brand">
-              <i className="bi bi-shop-window me-2"></i>
-              نبات نگین آرا
-              {user.role === 'SALES_REP' && user.salesRep && (
-                <small className="ms-2 text-muted">
-                  | ویزیتور: {user.salesRep.name}
-                </small>
-              )}
+              {/* برند با فونت کوچک در موبایل */}
+              <div className="navbar-brand">
+                <i className="bi bi-shop-window me-1 me-md-2"></i>
+                <span className=" d-sm-inline brand-text-sm">
+                  نبات نگین آرا
+                </span>
+                {user.role === 'SALES_REP' && user.salesRep && (
+                  <small className="ms-1 ms-md-2 text-muted d-none d-lg-inline salesrep-text-sm">
+                    | ویزیتور: {user.salesRep.name}
+                  </small>
+                )}
+              </div>
             </div>
 
-            <div className="d-flex ms-auto">
-              <div className="dropdown me-3">
+            {/* سمت چپ - منوی کاربر */}
+            <div className="d-flex align-items-center">
+              {/* نوتیفیکیشن - فقط در دسکتاپ */}
+              <div className="dropdown me-2 d-none d-sm-block">
                 <button
                   className="btn btn-outline-secondary dropdown-toggle"
                   data-bs-toggle="dropdown"
+                  style={{ 
+                    padding: '6px 8px',
+                    fontSize: '0.875rem'
+                  }}
                 >
                   <i className="bi bi-bell"></i>
                   <span className="badge bg-danger">3</span>
                 </button>
-                <ul className="dropdown-menu dropdown-menu-end">
+                <ul className="dropdown-menu dropdown-menu-start"> {/* تغییر به dropdown-menu-start */}
                   <li>
                     <a className="dropdown-item" href="#">
                       سفارش جدید دریافت شد
@@ -218,22 +230,42 @@ export default function DashboardLayout({ children }) {
                 </ul>
               </div>
 
+              {/* منوی کاربر - کامپکت */}
               <div className="dropdown">
                 <button
-                  className="btn btn-outline-secondary dropdown-toggle"
+                  className="btn btn-outline-secondary dropdown-toggle d-flex align-items-center"
                   data-bs-toggle="dropdown"
+                  style={{ 
+                    padding: '6px 8px',
+                    fontSize: '0.875rem',
+                    whiteSpace: 'nowrap'
+                  }}
                 >
-                  <i className="bi bi-person-circle me-2"></i>
-                  {user.firstName} {user.lastName}
+                  {/* آیکون کاربر */}
+                  <i className="bi bi-person-circle me-1"></i>
+                  
+                  {/* نام کاربر - فقط در تبلت و دسکتاپ */}
+                  <span className=" d-md-inline user-name-sm">
+                    {user.firstName} {user.lastName}
+                  </span>
+                  
+                  {/* نام کوتاه در موبایل */}
+                  {/* <span className="d-md-none user-initials-sm">
+                    {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                  </span> */}
                 </button>
-                <ul className="dropdown-menu dropdown-menu-end">
+                <ul className="dropdown-menu dropdown-menu-start"> {/* تغییر به dropdown-menu-start */}
                   <li>
-                    <span className="dropdown-item-text">
-                      <small>
-                        {user.role === 'SALES_REP' ? 'ویزیتور' : 
-                         user.role === 'ADMIN' ? 'مدیر سیستم' : 
-                         user.role === 'MANAGER' ? 'مدیر' : 'کاربر'}
-                      </small>
+                    <span className="dropdown-item-text small">
+                      {user.firstName} {user.lastName}
+                    </span>
+                  </li>
+                  <li>
+                    <span className="dropdown-item-text small text-muted">
+                      {user.role === 'SALES_REP' ? 'ویزیتور' : 
+                       user.role === 'ADMIN' ? 'مدیر سیستم' : 
+                       user.role === 'MANAGER' ? 'مدیر' : 'کاربر'}
+                      {user.salesRep && ` - ${user.salesRep.name}`}
                     </span>
                   </li>
                   <li><hr className="dropdown-divider" /></li>
@@ -263,6 +295,97 @@ export default function DashboardLayout({ children }) {
 
         <QuickOrderModal />
       </div>
+
+      {/* استایل‌های سفارشی برای navbar کامپکت */}
+      <style jsx>{`
+        .navbar {
+          padding: 0.5rem 1rem;
+        }
+        
+        .navbar-brand {
+          font-size: 1rem;
+          margin-right: 0;
+        }
+        
+        .btn {
+          font-size: 0.875rem;
+        }
+        
+        /* فونت کوچک برای برند در موبایل */
+        .brand-text-sm {
+          font-size: 0.9rem;
+        }
+        
+        .salesrep-text-sm {
+          font-size: 0.8rem;
+        }
+        
+        .user-name-sm {
+          font-size: 0.85rem;
+        }
+        
+        .user-initials-sm {
+          font-size: 0.8rem;
+          font-weight: bold;
+        }
+        
+        @media (max-width: 576px) {
+          .navbar {
+            padding: 0.4rem 0.5rem;
+          }
+          
+          .navbar-brand {
+            font-size: 0.9rem;
+          }
+          
+          .brand-text-sm {
+            font-size: 0.8rem;
+          }
+          
+          .btn {
+            padding: 4px 6px;
+            font-size: 0.8rem;
+          }
+          
+          .user-name-sm {
+            font-size: 0.8rem;
+          }
+          
+          .user-initials-sm {
+            font-size: 0.75rem;
+          }
+        }
+        
+        @media (max-width: 360px) {
+          .navbar-brand {
+            font-size: 0.8rem;
+          }
+          
+          .brand-text-sm {
+            font-size: 0.75rem;
+          }
+          
+          .btn {
+            padding: 3px 5px;
+            font-size: 0.75rem;
+          }
+          
+          .user-name-sm {
+            font-size: 0.75rem;
+          }
+          
+          .user-initials-sm {
+            font-size: 0.7rem;
+          }
+        }
+        
+        /* اطمینان از باز شدن منوها به سمت راست */
+        .dropdown-menu-start {
+          right: 0 !important;
+          left: auto !important;
+          text-align: right;
+        }
+      `}</style>
     </div>
   );
 }
