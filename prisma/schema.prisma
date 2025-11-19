@@ -8,6 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// prisma/schema.prisma
 model User {
   id        Int      @id @default(autoincrement())
   username  String   @unique
@@ -16,11 +17,22 @@ model User {
   firstName String
   lastName  String
   phone     String?
-  role      String   @default("USER")
+  role      UserRole @default(SALES_REP)
+  salesRepId Int?    // اضافه کردن این فیلد
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders Order[]
+  orders    Order[]
+  salesRep  SalesRep? @relation(fields: [salesRepId], references: [id]) // اضافه کردن این رابطه
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  SALES_REP
+  MANAGER
 }
 
 model Product {
@@ -98,6 +110,7 @@ model Order {
   id            Int      @id @default(autoincrement())
   storeCode     String
   userId        Int
+  salesRepId    Int?     // اضافه کردن این فیلد جدید
   totalAmount   Float
   status        String   @default("PENDING")
   notes         String?
@@ -112,6 +125,7 @@ model Order {
 
   store Store       @relation(fields: [storeCode], references: [code])
   user  User        @relation(fields: [userId], references: [id])
+  salesRep    SalesRep?    @relation(fields: [salesRepId], references: [id]) // اضافه کردن این رابطه
   items OrderItem[]
 
   @@map("orders")
@@ -207,4 +221,18 @@ model DiscountGroupTier {
   discountGroup DiscountGroup @relation(fields: [discountGroupId], references: [id])
 
   @@unique([discountGroupId, minQuantity])
+}
+// مدل ویزیتور را اضافه کنید (این مدل جدید است)
+model SalesRep {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  phone       String?
+  email       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+  users       User[]   // اضافه کردن این رابطه
 }

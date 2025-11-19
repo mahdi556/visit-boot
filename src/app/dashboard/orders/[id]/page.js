@@ -5,12 +5,12 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import InvoiceModal from '@/components/invoice/InvoiceModal'
+import SalesRepSelector from '@/components/orders/SalesRepSelector'
 
 export default function OrderDetailPage() {
   const params = useParams()
   const router = useRouter()
   
-  // تبدیل orderId به number
   const orderId = parseInt(params.id)
   const [order, setOrder] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -18,26 +18,47 @@ export default function OrderDetailPage() {
   const [showInvoice, setShowInvoice] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [products, setProducts] = useState([])
+  const [salesReps, setSalesReps] = useState([])
+  const [stores, setStores] = useState([])
+  const [currentUser, setCurrentUser] = useState(null)
   const [formData, setFormData] = useState({
     status: '',
-    notes: ''
+    notes: '',
+    salesRepId: null,
+    storeCode: ''
   })
   const [orderItems, setOrderItems] = useState([])
   const [newItem, setNewItem] = useState({
-    productCode: '', // تغییر از productId به productCode
+    productCode: '',
     quantity: 1,
     price: 0
   })
 
   useEffect(() => {
     if (orderId && !isNaN(orderId)) {
+      fetchCurrentUser()
       fetchOrder()
       fetchProducts()
+      fetchSalesReps()
+      fetchStores()
     } else {
       setError('شناسه سفارش نامعتبر است')
       setIsLoading(false)
     }
   }, [orderId])
+
+  // دریافت اطلاعات کاربر جاری
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me')
+      if (response.ok) {
+        const userData = await response.json()
+        setCurrentUser(userData)
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error)
+    }
+  }
 
   const fetchOrder = async () => {
     try {
@@ -51,12 +72,13 @@ export default function OrderDetailPage() {
         setOrder(data)
         setFormData({
           status: data.status,
-          notes: data.notes || ''
+          notes: data.notes || '',
+          salesRepId: data.salesRepId,
+          storeCode: data.storeCode
         })
-        // تبدیل items برای استفاده از productCode
         setOrderItems(data.items?.map(item => ({
           ...item,
-          productCode: item.product?.code, // استفاده از productCode
+          productCode: item.product?.code,
           productName: item.product?.name
         })) || [])
       } else {
@@ -80,15 +102,40 @@ export default function OrderDetailPage() {
     }
   }
 
+  const fetchSalesReps = async () => {
+    try {
+      const response = await fetch('/api/sales-reps')
+      if (response.ok) {
+        const data = await response.json()
+        setSalesReps(data)
+      }
+    } catch (error) {
+      console.error('Error fetching sales reps:', error)
+    }
+  }
+
+  const fetchStores = async () => {
+    try {
+      const response = await fetch('/api/stores')
+      if (response.ok) {
+        const data = await response.json()
+        setStores(data)
+      }
+    } catch (error) {
+      console.error('Error fetching stores:', error)
+    }
+  }
+
   const handleUpdate = async (e) => {
     e.preventDefault()
     try {
       const orderData = {
         status: formData.status,
         notes: formData.notes,
-        storeCode: order.storeCode, // اضافه کردن storeCode
+        salesRepId: formData.salesRepId,
+        storeCode: formData.storeCode,
         items: orderItems.map(item => ({
-          productCode: item.productCode, // استفاده از productCode
+          productCode: item.productCode,
           quantity: item.quantity,
           price: item.price
         })),
@@ -139,7 +186,6 @@ export default function OrderDetailPage() {
     }
   }
 
-  // مدیریت آیتم‌های سفارش - با productCode
   const handleAddItem = () => {
     if (!newItem.productCode || newItem.quantity <= 0 || newItem.price <= 0) {
       alert('لطفاً تمام فیلدهای مورد نیاز را پر کنید')
@@ -150,22 +196,19 @@ export default function OrderDetailPage() {
     const existingItemIndex = orderItems.findIndex(item => item.productCode === newItem.productCode)
 
     if (existingItemIndex >= 0) {
-      // اگر محصول قبلاً وجود دارد، تعداد را افزایش می‌دهیم
       const updatedItems = [...orderItems]
       updatedItems[existingItemIndex].quantity += parseInt(newItem.quantity)
       setOrderItems(updatedItems)
     } else {
-      // اضافه کردن آیتم جدید
       setOrderItems([...orderItems, {
-        id: Date.now(), // ID موقت
-        productCode: newItem.productCode, // استفاده از productCode
+        id: Date.now(),
+        productCode: newItem.productCode,
         productName: selectedProduct?.name,
         quantity: parseInt(newItem.quantity),
         price: parseFloat(newItem.price)
       }])
     }
 
-    // ریست کردن فرم جدید
     setNewItem({
       productCode: '',
       quantity: 1,
@@ -189,8 +232,9 @@ export default function OrderDetailPage() {
   }
 
   const handleUpdateItemPrice = (itemId, newPrice) => {
+    const priceValue = parseFloat(newPrice) || 0
     setOrderItems(orderItems.map(item => 
-      item.id === itemId ? { ...item, price: parseFloat(newPrice) } : item
+      item.id === itemId ? { ...item, price: priceValue } : item
     ))
   }
 
@@ -205,9 +249,16 @@ export default function OrderDetailPage() {
     }
   }
 
+  const handlePriceInputChange = (e, setterFunction) => {
+    const value = e.target.value
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setterFunction(value)
+    }
+  }
+
   const formatCurrency = (amount) => {
-    if (!amount) return '۰ تومان'
-    return new Intl.NumberFormat('fa-IR').format(amount) + ' تومان'
+    if (!amount) return '۰ ریال'
+    return new Intl.NumberFormat('fa-IR').format(amount) + ' ریال'
   }
 
   const formatDate = (dateString) => {
@@ -232,6 +283,9 @@ export default function OrderDetailPage() {
   const calculateTotal = () => {
     return orderItems.reduce((total, item) => total + (item.price * item.quantity), 0)
   }
+
+  // بررسی آیا کاربر ادمین است
+  const isAdmin = currentUser?.role === 'ADMIN'
 
   if (isLoading) {
     return (
@@ -293,9 +347,13 @@ export default function OrderDetailPage() {
           </h1>
           <small className="text-muted">
             تاریخ ایجاد: {formatDate(order.createdAt)}
+            {currentUser && (
+              <span className="me-2"> | کاربر: {currentUser.role === 'ADMIN' ? 'مدیر سیستم' : 'ویزیتور'}</span>
+            )}
           </small>
         </div>
         <div className="btn-group">
+          {/* دکمه فاکتور همیشه نمایش داده شود */}
           <button 
             className="btn btn-success"
             onClick={() => setShowInvoice(true)}
@@ -310,13 +368,15 @@ export default function OrderDetailPage() {
             <i className="bi bi-pencil me-2"></i>
             {editMode ? 'لغو ویرایش' : 'ویرایش'}
           </button>
-          <button 
-            className="btn btn-danger"
-            onClick={handleDelete}
-          >
-            <i className="bi bi-trash me-2"></i>
-            حذف
-          </button>
+          {isAdmin && (
+            <button 
+              className="btn btn-danger"
+              onClick={handleDelete}
+            >
+              <i className="bi bi-trash me-2"></i>
+              حذف
+            </button>
+          )}
           <Link 
             href="/dashboard/orders" 
             className="btn btn-outline-secondary"
@@ -338,7 +398,7 @@ export default function OrderDetailPage() {
               {editMode ? (
                 <form onSubmit={handleUpdate}>
                   <div className="row">
-                    <div className="col-md-6">
+                    <div className={isAdmin ? "col-md-4" : "col-md-6"}>
                       <div className="mb-3">
                         <label className="form-label">وضعیت سفارش</label>
                         <select
@@ -356,7 +416,42 @@ export default function OrderDetailPage() {
                         </select>
                       </div>
                     </div>
-                    <div className="col-md-6">
+                    
+                    {/* فقط ادمین می‌تواند ویزیتور را تغییر دهد */}
+                    {isAdmin && (
+                      <div className="col-md-4">
+                        <div className="mb-3">
+                          <label className="form-label">ویزیتور مسئول</label>
+                          <SalesRepSelector
+                            selectedRep={formData.salesRepId}
+                            onRepChange={(salesRepId) => setFormData({...formData, salesRepId})}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={isAdmin ? "col-md-4" : "col-md-6"}>
+                      <div className="mb-3">
+                        <label className="form-label">فروشگاه</label>
+                        <select
+                          className="form-select"
+                          value={formData.storeCode}
+                          onChange={(e) => setFormData({...formData, storeCode: e.target.value})}
+                          required
+                        >
+                          <option value="">انتخاب فروشگاه</option>
+                          {stores.map(store => (
+                            <option key={store.code} value={store.code}>
+                              {store.name} - {store.code}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="row">
+                    <div className="col-12">
                       <div className="mb-3">
                         <label className="form-label">یادداشت</label>
                         <textarea
@@ -400,13 +495,12 @@ export default function OrderDetailPage() {
                       </div>
                       <div className="col-md-3">
                         <input
-                          type="number"
+                          type="text"
                           className="form-control"
                           placeholder="قیمت"
                           value={newItem.price}
-                          onChange={(e) => setNewItem({...newItem, price: e.target.value})}
-                          min="0"
-                          step="1000"
+                          onChange={(e) => handlePriceInputChange(e, (value) => setNewItem({...newItem, price: value}))}
+                          inputMode="decimal"
                         />
                       </div>
                       <div className="col-md-3">
@@ -460,12 +554,11 @@ export default function OrderDetailPage() {
                                 </td>
                                 <td>
                                   <input
-                                    type="number"
+                                    type="text"
                                     className="form-control form-control-sm"
                                     value={item.price}
-                                    onChange={(e) => handleUpdateItemPrice(item.id, e.target.value)}
-                                    min="0"
-                                    step="1000"
+                                    onChange={(e) => handlePriceInputChange(e, (value) => handleUpdateItemPrice(item.id, value))}
+                                    inputMode="decimal"
                                   />
                                 </td>
                                 <td className="fw-bold text-primary">
@@ -536,6 +629,19 @@ export default function OrderDetailPage() {
                         <tr>
                           <td className="fw-bold">تاریخ ایجاد:</td>
                           <td>{formatDate(order.createdAt)}</td>
+                        </tr>
+                        <tr>
+                          <td className="fw-bold">ویزیتور:</td>
+                          <td>
+                            {order.salesRep ? (
+                              <span className="text-primary">
+                                <i className="bi bi-person-badge me-2"></i>
+                                {order.salesRep.name} ({order.salesRep.code})
+                              </span>
+                            ) : (
+                              <span className="text-muted">تعیین نشده</span>
+                            )}
+                          </td>
                         </tr>
                       </tbody>
                     </table>
@@ -616,33 +722,55 @@ export default function OrderDetailPage() {
 
         {/* اطلاعات جانبی */}
         <div className="col-lg-4">
-          {/* اطلاعات مشتری */}
+          {/* اطلاعات ویزیتور مسئول */}
           <div className="card mb-4">
             <div className="card-header">
-              <h5 className="card-title mb-0">اطلاعات مشتری</h5>
+              <h5 className="card-title mb-0">
+                <i className="bi bi-person-badge me-2"></i>
+                اطلاعات ویزیتور مسئول
+              </h5>
             </div>
             <div className="card-body">
-              <table className="table table-borderless">
-                <tbody>
-                  <tr>
-                    <td className="fw-bold">نام:</td>
-                    <td>{order.user?.firstName || 'نامشخص'} {order.user?.lastName || ''}</td>
-                  </tr>
-                  <tr>
-                    <td className="fw-bold">ایمیل:</td>
-                    <td>{order.user?.email || 'ثبت نشده'}</td>
-                  </tr>
-                  <tr>
-                    <td className="fw-bold">نام کاربری:</td>
-                    <td>{order.user?.username || 'ثبت نشده'}</td>
-                  </tr>
-                </tbody>
-              </table>
+              {order.salesRep ? (
+                <table className="table table-borderless">
+                  <tbody>
+                    <tr>
+                      <td className="fw-bold">نام:</td>
+                      <td>{order.salesRep.name}</td>
+                    </tr>
+                    <tr>
+                      <td className="fw-bold">کد:</td>
+                      <td><span className="badge bg-primary">{order.salesRep.code}</span></td>
+                    </tr>
+                    <tr>
+                      <td className="fw-bold">تلفن:</td>
+                      <td>{order.salesRep.phone || 'ثبت نشده'}</td>
+                    </tr>
+                    <tr>
+                      <td className="fw-bold">ایمیل:</td>
+                      <td>{order.salesRep.email || 'ثبت نشده'}</td>
+                    </tr>
+                    <tr>
+                      <td className="fw-bold">وضعیت:</td>
+                      <td>
+                        <span className={`badge ${order.salesRep.isActive ? 'bg-success' : 'bg-danger'}`}>
+                          {order.salesRep.isActive ? 'فعال' : 'غیرفعال'}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              ) : (
+                <div className="text-center text-muted py-3">
+                  <i className="bi bi-person-x display-6"></i>
+                  <p className="mt-2 mb-0">ویزیتور تعیین نشده است</p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* اطلاعات فروشگاه */}
-          <div className="card">
+          <div className="card mb-4">
             <div className="card-header">
               <h5 className="card-title mb-0">اطلاعات فروشگاه</h5>
             </div>
@@ -669,14 +797,62 @@ export default function OrderDetailPage() {
                     <td className="fw-bold">آدرس:</td>
                     <td>{order.store?.address || 'ثبت نشده'}</td>
                   </tr>
+                  <tr>
+                    <td className="fw-bold">نوع فروشگاه:</td>
+                    <td>
+                      <span className="badge bg-info">
+                        {order.store?.storeType === 'SUPERMARKET' ? 'سوپرمارکت' : 
+                         order.store?.storeType === 'GROCERY' ? 'بقالی' : 
+                         order.store?.storeType || 'سوپرمارکت'}
+                      </span>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
           </div>
+
+          {/* اطلاعات ثبت کننده سفارش (اختیاری - فقط برای ادمین) */}
+          {isAdmin && order.user && (
+            <div className="card">
+              <div className="card-header">
+                <h5 className="card-title mb-0">
+                  <i className="bi bi-person me-2"></i>
+                  اطلاعات ثبت‌کننده سفارش
+                </h5>
+              </div>
+              <div className="card-body">
+                <table className="table table-borderless">
+                  <tbody>
+                    <tr>
+                      <td className="fw-bold">نام:</td>
+                      <td>{order.user?.firstName || 'نامشخص'} {order.user?.lastName || ''}</td>
+                    </tr>
+                    <tr>
+                      <td className="fw-bold">نام کاربری:</td>
+                      <td>{order.user?.username || 'ثبت نشده'}</td>
+                    </tr>
+                    <tr>
+                      <td className="fw-bold">نقش:</td>
+                      <td>
+                        <span className={`badge ${
+                          order.user?.role === 'ADMIN' ? 'bg-danger' : 
+                          order.user?.role === 'MANAGER' ? 'bg-warning' : 'bg-info'
+                        }`}>
+                          {order.user?.role === 'ADMIN' ? 'مدیر سیستم' :
+                          order.user?.role === 'MANAGER' ? 'مدیر' : 'ویزیتور'}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* مودال فاکتور */}
+      {/* مودال فاکتور - همیشه در دسترس باشد */}
       {order && (
         <InvoiceModal
           order={order}

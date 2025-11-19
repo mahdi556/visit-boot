@@ -1,10 +1,11 @@
+// 📂 src/app/dashboard/routes-and-areas/page.js
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import RouteStoresManager from "@/components/maps/RouteStoresManager"; // ایمپورت کامپوننت جدید
 
-// کامپوننت MapEditor را import کنید
 const MapEditor = dynamic(() => import("@/components/maps/MapEditor"), {
   ssr: false,
   loading: () => (
@@ -20,8 +21,11 @@ export default function RoutesAndAreasPage() {
   const [activeTab, setActiveTab] = useState("routes");
   const [routes, setRoutes] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showStoresModal, setShowStoresModal] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editingRoute, setEditingRoute] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -37,10 +41,13 @@ export default function RoutesAndAreasPage() {
 
   const fetchRoutes = async () => {
     try {
+      setIsLoading(true);
       const response = await fetch("/api/routes");
       if (response.ok) {
         const data = await response.json();
         setRoutes(data);
+      } else {
+        console.error("خطا در دریافت مسیرها");
       }
     } catch (error) {
       console.error("Error fetching routes:", error);
@@ -51,7 +58,10 @@ export default function RoutesAndAreasPage() {
 
   const handleCreateRoute = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     try {
+      setIsSubmitting(true);
       const url = editingRoute ? `/api/routes/${editingRoute.id}` : "/api/routes";
       const method = editingRoute ? "PUT" : "POST";
 
@@ -63,27 +73,28 @@ export default function RoutesAndAreasPage() {
         body: JSON.stringify(formData),
       });
 
+      const result = await response.json();
+
       if (response.ok) {
-        const routeData = await response.json();
-        
         if (editingRoute) {
           setRoutes(prev => prev.map(route => 
-            route.id === editingRoute.id ? routeData : route
+            route.id === editingRoute.id ? result : route
           ));
         } else {
-          setRoutes(prev => [routeData, ...prev]);
+          setRoutes(prev => [result, ...prev]);
         }
 
         setShowCreateModal(false);
         resetForm();
         alert(editingRoute ? "مسیر با موفقیت ویرایش شد" : "مسیر با موفقیت ایجاد شد");
       } else {
-        const error = await response.json();
-        alert(error.error || "خطا در ذخیره مسیر");
+        alert(result.error || "خطا در ذخیره مسیر");
       }
     } catch (error) {
       console.error("Error saving route:", error);
       alert("خطا در ذخیره مسیر");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -99,6 +110,17 @@ export default function RoutesAndAreasPage() {
     setShowCreateModal(true);
   };
 
+  // تابع جدید برای مدیریت فروشگاه‌های مسیر
+  const handleManageStores = (route) => {
+    setSelectedRoute(route);
+    setShowStoresModal(true);
+  };
+
+  // تابع برای رفرش کردن لیست پس از تغییرات
+  const handleStoresUpdated = () => {
+    fetchRoutes(); // رفرش کردن لیست مسیرها
+  };
+
   const handleDelete = async (routeId) => {
     if (!confirm("آیا از حذف این مسیر اطمینان دارید؟")) return;
 
@@ -107,12 +129,13 @@ export default function RoutesAndAreasPage() {
         method: "DELETE",
       });
 
+      const result = await response.json();
+
       if (response.ok) {
         setRoutes(prev => prev.filter(route => route.id !== routeId));
         alert("مسیر با موفقیت حذف شد");
       } else {
-        const error = await response.json();
-        alert(error.error || "خطا در حذف مسیر");
+        alert(result.error || "خطا در حذف مسیر");
       }
     } catch (error) {
       console.error("Error deleting route:", error);
@@ -130,6 +153,7 @@ export default function RoutesAndAreasPage() {
     });
     setEditingRoute(null);
     setShowCreateModal(false);
+    setIsSubmitting(false);
   };
 
   const formatDate = (dateString) => {
@@ -139,10 +163,11 @@ export default function RoutesAndAreasPage() {
   if (isLoading) {
     return (
       <div className="container-fluid">
-        <div className="d-flex justify-content-center py-5">
+        <div className="d-flex justify-content-center align-items-center py-5">
           <div className="spinner-border text-primary" role="status">
             <span className="visually-hidden">در حال بارگذاری...</span>
           </div>
+          <span className="ms-2">در حال بارگذاری مسیرها...</span>
         </div>
       </div>
     );
@@ -175,6 +200,7 @@ export default function RoutesAndAreasPage() {
               setEditingRoute(null);
               setShowCreateModal(true);
             }}
+            disabled={isSubmitting}
           >
             <i className="bi bi-plus-circle me-2"></i>
             ایجاد مسیر جدید
@@ -307,6 +333,7 @@ export default function RoutesAndAreasPage() {
                     setEditingRoute(null);
                     setShowCreateModal(true);
                   }}
+                  disabled={isSubmitting}
                 >
                   <i className="bi bi-plus-circle me-2"></i>
                   مسیر جدید
@@ -376,21 +403,31 @@ export default function RoutesAndAreasPage() {
                             <button
                               className="btn btn-outline-primary"
                               onClick={() => handleEdit(route)}
+                              disabled={isSubmitting}
                             >
                               <i className="bi bi-pencil"></i>
                             </button>
                             <button
                               className="btn btn-outline-info"
+                              onClick={() => handleManageStores(route)}
+                              disabled={isSubmitting}
+                              title="مدیریت فروشگاه‌های این مسیر"
+                            >
+                              <i className="bi bi-shop"></i>
+                            </button>
+                            <button
+                              className="btn btn-outline-warning"
                               onClick={() => {
                                 setActiveTab("map");
-                                // می‌توانید stateای برای auto-select این مسیر در نقشه اضافه کنید
                               }}
+                              title="مشاهده روی نقشه"
                             >
                               <i className="bi bi-map"></i>
                             </button>
                             <button
                               className="btn btn-outline-danger"
                               onClick={() => handleDelete(route.id)}
+                              disabled={isSubmitting}
                             >
                               <i className="bi bi-trash"></i>
                             </button>
@@ -409,6 +446,7 @@ export default function RoutesAndAreasPage() {
                   <button
                     className="btn btn-primary"
                     onClick={() => setShowCreateModal(true)}
+                    disabled={isSubmitting}
                   >
                     ایجاد اولین مسیر
                   </button>
@@ -459,6 +497,7 @@ export default function RoutesAndAreasPage() {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="mb-3">
@@ -468,6 +507,7 @@ export default function RoutesAndAreasPage() {
                       className="form-control"
                       value={formData.driverName}
                       onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="mb-3">
@@ -477,6 +517,7 @@ export default function RoutesAndAreasPage() {
                       className="form-control"
                       value={formData.vehicleType}
                       onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="mb-3">
@@ -486,6 +527,7 @@ export default function RoutesAndAreasPage() {
                       className="form-control"
                       value={formData.color}
                       onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="mb-3">
@@ -495,6 +537,7 @@ export default function RoutesAndAreasPage() {
                         type="checkbox"
                         checked={formData.isActive}
                         onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                        disabled={isSubmitting}
                       />
                       <label className="form-check-label">
                         مسیر فعال
@@ -503,17 +546,45 @@ export default function RoutesAndAreasPage() {
                   </div>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={resetForm}>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={resetForm}
+                    disabled={isSubmitting}
+                  >
                     انصراف
                   </button>
-                  <button type="submit" className="btn btn-primary">
-                    {editingRoute ? "ویرایش مسیر" : "ایجاد مسیر"}
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2"></span>
+                        در حال ذخیره...
+                      </>
+                    ) : (
+                      editingRoute ? "ویرایش مسیر" : "ایجاد مسیر"
+                    )}
                   </button>
                 </div>
               </form>
             </div>
           </div>
         </div>
+      )}
+
+      {/* مودال مدیریت فروشگاه‌های مسیر */}
+      {showStoresModal && selectedRoute && (
+        <RouteStoresManager
+          route={selectedRoute}
+          onClose={() => {
+            setShowStoresModal(false);
+            setSelectedRoute(null);
+          }}
+          onStoresUpdated={handleStoresUpdated}
+        />
       )}
     </div>
   );

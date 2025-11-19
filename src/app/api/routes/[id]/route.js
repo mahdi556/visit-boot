@@ -1,11 +1,13 @@
+// 📂 src/app/api/routes/[id]/route.js
 import { NextResponse } from "next/server";
 import prisma from "@/lib/database";
 
 // GET - دریافت یک مسیر خاص
 export async function GET(request, { params }) {
   try {
+    const { id } = await params;
     const route = await prisma.route.findUnique({
-      where: { id: params.id },
+      where: { id: parseInt(id) },
       include: {
         stores: {
           include: {
@@ -36,25 +38,30 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(route);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Error fetching route:", error);
+    return NextResponse.json(
+      { error: "خطا در دریافت اطلاعات مسیر" },
+      { status: 500 }
+    );
   }
 }
 
-// PUT - بروزرسانی مسیر (اضافه کردن coordinates و area)
+// PUT - بروزرسانی مسیر
 export async function PUT(request, { params }) {
   try {
+    const { id } = await params;
     const body = await request.json();
 
     const route = await prisma.route.update({
-      where: { id: params.id },
+      where: { id: parseInt(id) },
       data: {
         name: body.name,
         driverName: body.driverName,
         vehicleType: body.vehicleType,
         color: body.color,
         isActive: body.isActive,
-        coordinates: body.coordinates, // اضافه شده
-        area: body.area, // اضافه شده
+        coordinates: body.coordinates,
+        area: body.area,
       },
       include: {
         _count: {
@@ -78,34 +85,50 @@ export async function PUT(request, { params }) {
 // DELETE - حذف مسیر
 export async function DELETE(request, { params }) {
   try {
-    // بررسی اینکه مسیر دارای فروشگاه هست یا نه
-    const routeWithStores = await prisma.route.findUnique({
-      where: { id: params.id },
+    const { id } = await params;
+    const routeId = parseInt(id);
+
+    // بررسی وجود مسیر
+    const existingRoute = await prisma.route.findUnique({
+      where: { id: routeId },
       include: {
         _count: {
           select: {
             stores: true,
+            deliveries: true,
           },
         },
       },
     });
 
-    if (!routeWithStores) {
+    if (!existingRoute) {
       return NextResponse.json({ error: "مسیر یافت نشد" }, { status: 404 });
     }
 
-    if (routeWithStores._count.stores > 0) {
+    // بررسی وابستگی‌ها
+    if (existingRoute._count.stores > 0) {
       return NextResponse.json(
         {
           error: "امکان حذف مسیر دارای فروشگاه وجود ندارد",
-          storeCount: routeWithStores._count.stores,
+          storeCount: existingRoute._count.stores,
         },
         { status: 400 }
       );
     }
 
+    if (existingRoute._count.deliveries > 0) {
+      return NextResponse.json(
+        {
+          error: "امکان حذف مسیر دارای سابقه تحویل وجود ندارد",
+          deliveryCount: existingRoute._count.deliveries,
+        },
+        { status: 400 }
+      );
+    }
+
+    // حذف مسیر
     await prisma.route.delete({
-      where: { id: params.id },
+      where: { id: routeId },
     });
 
     return NextResponse.json({
@@ -114,6 +137,25 @@ export async function DELETE(request, { params }) {
     });
   } catch (error) {
     console.error("Error deleting route:", error);
-    return NextResponse.json({ error: "خطا در حذف مسیر" }, { status: 500 });
+    
+    // مدیریت خطاهای مختلف
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: "مسیر مورد نظر یافت نشد" },
+        { status: 404 }
+      );
+    }
+    
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: "این مسیر دارای وابستگی‌هایی است که امکان حذف آن وجود ندارد" },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: "خطا در حذف مسیر: " + error.message },
+      { status: 500 }
+    );
   }
 }
