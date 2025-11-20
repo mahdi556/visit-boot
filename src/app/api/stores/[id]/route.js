@@ -1,11 +1,15 @@
+// 📂 src/app/api/stores/[id]/route.js
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/database'
 
 // GET - دریافت اطلاعات یک فروشگاه
 export async function GET(request, { params }) {
   try {
+    // استفاده از await برای params
+    const { id } = await params;
+    
     const store = await prisma.store.findUnique({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
       include: {
         deliveryZone: {
           select: {
@@ -24,7 +28,10 @@ export async function GET(request, { params }) {
           }
         },
         _count: {
-          select: { orders: true }
+          select: { 
+            orders: true,
+            deliveries: true 
+          }
         }
       }
     })
@@ -49,11 +56,13 @@ export async function GET(request, { params }) {
 // PUT - ویرایش فروشگاه
 export async function PUT(request, { params }) {
   try {
+    // استفاده از await برای params
+    const { id } = await params;
     const body = await request.json()
     
     // چک کردن وجود فروشگاه
     const existingStore = await prisma.store.findUnique({
-      where: { id: parseInt(params.id) }
+      where: { id: parseInt(id) }
     })
 
     if (!existingStore) {
@@ -77,8 +86,8 @@ export async function PUT(request, { params }) {
       phone: body.phone,
       address: body.address,
       storeType: body.storeType || 'SUPERMARKET',
-      deliveryZoneId: body.deliveryZoneId || null, // اضافه شده
-      routeId: body.routeId || null, // اضافه شده
+      deliveryZoneId: body.deliveryZoneId || null,
+      routeId: body.routeId || null,
     }
 
     // اضافه کردن موقعیت اگر وجود دارد
@@ -88,7 +97,7 @@ export async function PUT(request, { params }) {
     }
 
     const store = await prisma.store.update({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
       data: storeData,
       include: {
         deliveryZone: true,
@@ -117,12 +126,18 @@ export async function PUT(request, { params }) {
 // DELETE - حذف فروشگاه
 export async function DELETE(request, { params }) {
   try {
+    // استفاده از await برای params
+    const { id } = await params;
+    
     // چک کردن وجود فروشگاه
     const existingStore = await prisma.store.findUnique({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
       include: {
         _count: {
-          select: { orders: true }
+          select: { 
+            orders: true,
+            deliveries: true 
+          }
         }
       }
     })
@@ -134,16 +149,16 @@ export async function DELETE(request, { params }) {
       )
     }
 
-    // چک کردن وجود سفارشات
-    if (existingStore._count.orders > 0) {
+    // چک کردن وجود سفارشات یا تحویل‌ها
+    if (existingStore._count.orders > 0 || existingStore._count.deliveries > 0) {
       return NextResponse.json(
-        { error: 'امکان حذف فروشگاه با سفارشات فعال وجود ندارد' },
+        { error: 'امکان حذف فروشگاه با سفارشات یا تحویل‌های فعال وجود ندارد' },
         { status: 400 }
       )
     }
 
     await prisma.store.delete({
-      where: { id: parseInt(params.id) }
+      where: { id: parseInt(id) }
     })
 
     return NextResponse.json(
