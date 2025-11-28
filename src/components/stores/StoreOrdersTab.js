@@ -7,17 +7,19 @@ import {
   Button, 
   Card, 
   CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
+  Grid,
   Chip,
-  Alert
+  Alert,
+  IconButton,
+  Stack
 } from '@mui/material';
-import { Add as AddIcon, ShoppingCart as CartIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import { 
+  Add as AddIcon, 
+  ShoppingCart as CartIcon, 
+  Refresh as RefreshIcon,
+  Receipt as InvoiceIcon,
+  Edit as EditIcon
+} from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -35,15 +37,26 @@ export default function StoreOrdersTab({ store, orders, onRefresh }) {
       if (onRefresh) {
         await onRefresh();
       }
-      // ریفرش دستی صفحه
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
     } catch (error) {
       console.error('Error refreshing:', error);
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleOrderClick = (orderId) => {
+    router.push(`/dashboard/orders/${orderId}`);
+  };
+
+  const handleShowInvoice = (order, e) => {
+    e.stopPropagation();
+    // اینجا می‌توانید مودال فاکتور را باز کنید
+    console.log('Show invoice for order:', order.id);
+  };
+
+  const handleEditOrder = (order, e) => {
+    e.stopPropagation();
+    router.push(`/dashboard/orders/${order.id}/edit`);
   };
 
   const formatPrice = (price) => {
@@ -76,6 +89,14 @@ export default function StoreOrdersTab({ store, orders, onRefresh }) {
       'CANCELLED': 'لغو شده'
     };
     return statusMap[status] || status;
+  };
+
+  // محاسبه تعداد اقلام
+  const getTotalItems = (order) => {
+    if (order.items && Array.isArray(order.items)) {
+      return order.items.reduce((total, item) => total + (item.quantity || 0), 0);
+    }
+    return 0;
   };
 
   // اگر orders undefined یا null باشد
@@ -123,7 +144,7 @@ export default function StoreOrdersTab({ store, orders, onRefresh }) {
           </Box>
         </Box>
 
-        <Card>
+        <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <CartIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -171,65 +192,135 @@ export default function StoreOrdersTab({ store, orders, onRefresh }) {
         </Box>
       </Box>
 
-      <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 2 }}>
-        <Table>
-          <TableHead sx={{ backgroundColor: 'grey.50' }}>
-            <TableRow>
-              <TableCell><strong>شماره سفارش</strong></TableCell>
-              <TableCell><strong>تاریخ</strong></TableCell>
-              <TableCell><strong>مبلغ کل</strong></TableCell>
-              <TableCell><strong>تخفیف</strong></TableCell>
-              <TableCell><strong>مبلغ نهایی</strong></TableCell>
-              <TableCell><strong>وضعیت</strong></TableCell>
-              <TableCell><strong>فروشنده</strong></TableCell>
-              <TableCell><strong>تعداد اقلام</strong></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {orders.map((order) => (
-              <TableRow 
-                key={order.id}
-                hover
-                sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
-                onClick={() => router.push(`/dashboard/orders/${order.id}`)}
-              >
-                <TableCell component="th" scope="row">
-                  <Typography variant="body2" fontWeight="medium">
-                    #{order.id}
+      {/* لیست کارت‌های سفارش */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {orders.map((order) => (
+          <Card 
+            key={order.id}
+            sx={{ 
+              borderRadius: 2, 
+              boxShadow: 2,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                boxShadow: 4,
+                transform: 'translateY(-2px)'
+              }
+            }}
+            onClick={() => handleOrderClick(order.id)}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    سفارش #{order.id}
                   </Typography>
-                </TableCell>
-                <TableCell>{formatDate(order.orderDate)}</TableCell>
-                <TableCell>{formatPrice(order.totalAmount)}</TableCell>
-                <TableCell>{formatPrice(order.totalDiscount)}</TableCell>
-                <TableCell>
-                  <Typography fontWeight="bold" color="primary">
-                    {formatPrice(order.finalAmount)}
+                  <Typography variant="body2" color="text.secondary">
+                    {formatDate(order.orderDate)}
                   </Typography>
-                </TableCell>
-                <TableCell>
+                </Box>
+                
+                <Box display="flex" alignItems="center" gap={1}>
                   <Chip 
                     label={getStatusText(order.status)} 
                     color={getStatusColor(order.status)}
                     size="small"
                     variant="outlined"
                   />
-                </TableCell>
-                <TableCell>
-                  {order.user?.firstName} {order.user?.lastName}
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => handleEditOrder(order, e)}
+                    color="primary"
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => handleShowInvoice(order, e)}
+                    color="secondary"
+                  >
+                    <InvoiceIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    مبلغ کل
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {formatPrice(order.totalAmount)}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={2}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    تخفیف
+                  </Typography>
+                  <Typography variant="body1" color="error.main">
+                    {formatPrice(order.totalDiscount)}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    مبلغ نهایی
+                  </Typography>
+                  <Typography variant="h6" color="primary" fontWeight="bold">
+                    {formatPrice(order.finalAmount || order.totalAmount)}
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={2}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    تعداد اقلام
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {getTotalItems(order)} قلم
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={2}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    فروشنده
+                  </Typography>
+                  <Typography variant="body2" fontWeight="medium">
+                    {order.user?.firstName} {order.user?.lastName}
+                  </Typography>
                   {order.salesRep && (
-                    <Typography variant="caption" display="block" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary">
                       {order.salesRep.name}
                     </Typography>
                   )}
-                </TableCell>
-                <TableCell>
-                  {order.totalItems} قلم
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                </Grid>
+              </Grid>
+
+              {/* اطلاعات اضافی برای موبایل */}
+              <Box sx={{ display: { xs: 'block', md: 'none' }, mt: 2 }}>
+                <Stack direction="row" spacing={2} justifyContent="space-between">
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      مبلغ نهایی
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {formatPrice(order.finalAmount || order.totalAmount)}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      تعداد
+                    </Typography>
+                    <Typography variant="body2">
+                      {getTotalItems(order)} قلم
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
     </Box>
   );
 }

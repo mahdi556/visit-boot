@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: "شناسه سفارش نامعتبر است" }, { status: 400 });
     }
 
-    // کوئری بسیار ساده بدون هیچ رابطه user
+    // کوئری کامل با تمام فیلدهای مورد نیاز
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       select: {
@@ -20,6 +20,7 @@ export async function GET(request, { params }) {
         totalAmount: true,
         status: true,
         orderDate: true,
+        deliveryDate: true, // اضافه شده
         createdAt: true,
         storeCode: true,
         salesRepId: true,
@@ -27,6 +28,9 @@ export async function GET(request, { params }) {
         notes: true,
         totalDiscount: true,
         finalAmount: true,
+        paymentMethod: true, // اضافه شده
+        creditDays: true, // اضافه شده
+        paymentStatus: true, // اضافه شده
         store: {
           select: {
             id: true,
@@ -36,6 +40,9 @@ export async function GET(request, { params }) {
             phone: true,
             ownerName: true,
             storeType: true,
+            creditEnabled: true,
+            creditLimit: true,
+            creditType: true,
           },
         },
         salesRep: {
@@ -66,6 +73,22 @@ export async function GET(request, { params }) {
             },
           },
         },
+        creditTransactions: {
+          select: {
+            id: true,
+            amount: true,
+            type: true,
+            status: true,
+            chequeNumber: true,
+            dueDate: true,
+            description: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 5,
+        },
       },
     });
 
@@ -73,7 +96,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
     }
 
-    // ساخت پاسخ بدون user
+    // ساخت پاسخ کامل
     const response = {
       ...order,
       user: {
@@ -82,8 +105,17 @@ export async function GET(request, { params }) {
         lastName: "اتوماسیون",
         username: "system",
         role: "SYSTEM"
-      }
+      },
+      // محاسبه وضعیت پرداخت اگر وجود نداشت
+      paymentStatus: order.paymentStatus || 'UNPAID'
     };
+
+    console.log("✅ Order detail fetched:", {
+      id: order.id,
+      paymentMethod: order.paymentMethod,
+      creditDays: order.creditDays,
+      paymentStatus: order.paymentStatus
+    });
 
     return NextResponse.json(response);
   } catch (error) {
@@ -108,7 +140,13 @@ export async function PUT(request, { params }) {
     // بررسی وجود سفارش
     const existingOrder = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, salesRepId: true }
+      select: { 
+        id: true, 
+        salesRepId: true,
+        paymentMethod: true,
+        creditDays: true,
+        paymentStatus: true
+      }
     });
 
     if (!existingOrder) {
@@ -122,6 +160,10 @@ export async function PUT(request, { params }) {
       totalAmount: parseFloat(body.totalAmount) || 0,
       finalAmount: parseFloat(body.finalAmount) || parseFloat(body.totalAmount) || 0,
       totalDiscount: parseFloat(body.totalDiscount) || 0,
+      // اضافه کردن فیلدهای پرداخت
+      paymentMethod: body.paymentMethod || existingOrder.paymentMethod || 'CASH',
+      creditDays: body.creditDays !== undefined ? body.creditDays : existingOrder.creditDays,
+      paymentStatus: body.paymentStatus || existingOrder.paymentStatus || 'UNPAID',
     };
 
     // اگر salesRepId ارسال شده، آن را اضافه کن
@@ -175,6 +217,9 @@ export async function PUT(request, { params }) {
           notes: true,
           totalDiscount: true,
           finalAmount: true,
+          paymentMethod: true, // اضافه شده
+          creditDays: true, // اضافه شده
+          paymentStatus: true, // اضافه شده
           store: {
             select: {
               id: true,
@@ -184,6 +229,9 @@ export async function PUT(request, { params }) {
               phone: true,
               ownerName: true,
               storeType: true,
+              creditEnabled: true,
+              creditLimit: true,
+              creditType: true,
             },
           },
           salesRep: {
@@ -214,6 +262,22 @@ export async function PUT(request, { params }) {
               },
             },
           },
+          creditTransactions: {
+            select: {
+              id: true,
+              amount: true,
+              type: true,
+              status: true,
+              chequeNumber: true,
+              dueDate: true,
+              description: true,
+              createdAt: true,
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 5,
+          },
         },
       });
 
@@ -232,7 +296,13 @@ export async function PUT(request, { params }) {
       }
     };
 
-    console.log("✅ Order updated successfully:", orderId);
+    console.log("✅ Order updated successfully:", {
+      id: orderId,
+      paymentMethod: result.paymentMethod,
+      creditDays: result.creditDays,
+      paymentStatus: result.paymentStatus
+    });
+
     return NextResponse.json(response);
   } catch (error) {
     console.error("❌ Error updating order:", error);
@@ -264,6 +334,11 @@ export async function DELETE(request, { params }) {
     await prisma.$transaction(async (tx) => {
       // حذف آیتم‌های سفارش
       await tx.orderItem.deleteMany({
+        where: { orderId }
+      });
+
+      // حذف تراکنش‌های اعتباری مرتبط
+      await tx.creditTransaction.deleteMany({
         where: { orderId }
       });
 

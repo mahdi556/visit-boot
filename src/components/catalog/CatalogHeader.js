@@ -17,15 +17,21 @@ export default function CatalogHeader({
   onSearchTermChange,
   onCategoryChange,
   onShowCart,
-  onBack
+  onBack,
 }) {
   return (
-    <div className="sticky-top bg-white shadow-sm z-3">
+    <div
+      className="sticky-top bg-white shadow-sm z-3"
+      style={{ top: "70px" }} // اضافه کردن این خط - ارتفاع navbar اصلی
+    >
       <div className="container-fluid py-2">
         <div className="row align-items-center">
           <div className="col">
             <div className="d-flex align-items-center">
-              <button className="btn btn-outline-secondary btn-sm me-3" onClick={onBack}>
+              <button
+                className="btn btn-outline-secondary btn-sm me-3"
+                onClick={onBack}
+              >
                 <i className="bi bi-arrow-right"></i>
               </button>
               <div>
@@ -73,7 +79,9 @@ export default function CatalogHeader({
                 {cart.length > 0 && (
                   <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                     {cart.length}
-                    <span className="visually-hidden">تعداد محصولات در سبد</span>
+                    <span className="visually-hidden">
+                      تعداد محصولات در سبد
+                    </span>
                   </span>
                 )}
               </button>
@@ -124,15 +132,22 @@ function StoreSelector({
   onStoreSelect,
   onStoreSearchChange,
   onShowStoreResults,
-  onTempOrderModeChange
+  onTempOrderModeChange,
 }) {
   return (
     <div className="dropdown">
-      <button className="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+      <button
+        className="btn btn-outline-primary btn-sm dropdown-toggle"
+        type="button"
+        data-bs-toggle="dropdown"
+      >
         <i className="bi bi-shop me-1"></i>
         {selectedStore ? selectedStore.name : "انتخاب فروشگاه"}
       </button>
-      <div className="dropdown-menu dropdown-menu-end p-3" style={{ width: "400px" }}>
+      <div
+        className="dropdown-menu dropdown-menu-end p-3"
+        style={{ width: "400px" }}
+      >
         <div className="mb-3">
           <label className="form-label small fw-bold">جستجوی فروشگاه</label>
           <input
@@ -149,7 +164,10 @@ function StoreSelector({
         </div>
 
         {showStoreResults && storeSearch.length >= 2 && (
-          <div className="mb-3" style={{ maxHeight: "200px", overflowY: "auto" }}>
+          <div
+            className="mb-3"
+            style={{ maxHeight: "200px", overflowY: "auto" }}
+          >
             {filteredStores.slice(0, 5).map((store) => (
               <button
                 key={store.id}

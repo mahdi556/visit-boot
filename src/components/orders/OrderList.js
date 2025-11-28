@@ -1,86 +1,81 @@
-'use client'
+// 📂 src/components/orders/OrdersList.js
+'use client';
 
-import { useState } from 'react'
-import InvoiceModal from '@/components/invoice/InvoiceModal'
+import { 
+  Grid, 
+  Box, 
+  Typography, 
+  CircularProgress, 
+  Alert,
+  Skeleton 
+} from '@mui/material';
+import OrderCard from './OrderCard';
 
-export default function OrderList({ orders }) {
-  const [selectedOrder, setSelectedOrder] = useState(null)
-  const [showInvoice, setShowInvoice] = useState(false)
-
-  const handleShowInvoice = (order) => {
-    setSelectedOrder(order)
-    setShowInvoice(true)
-  }
-
-  return (
-    <>
-      <table className="table table-striped">
-        <thead>
-          <tr>
-            <th>شماره سفارش</th>
-            <th>فروشگاه</th>
-            <th>کد فروشگاه</th> {/* اضافه شده */}
-            <th>مبلغ</th>
-            <th>تاریخ</th>
-            <th>وضعیت</th>
-            <th>عملیات</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map(order => (
-            <tr key={order.id}>
-              <td>#{order.id}</td>
-              <td>{order.store.name}</td>
-              <td>
-                <span className="badge bg-secondary">{order.store.code}</span> {/* اضافه شده */}
-              </td>
-              <td>{order.totalAmount.toLocaleString()} تومان</td>
-              <td>{new Date(order.orderDate).toLocaleDateString('fa-IR')}</td>
-              <td>
-                <span className={`badge ${getStatusBadge(order.status)}`}>
-                  {getStatusText(order.status)}
-                </span>
-              </td>
-              <td>
-                <button
-                  className="btn btn-sm btn-outline-primary me-2"
-                  onClick={() => handleShowInvoice(order)}
-                >
-                  <i className="bi bi-receipt me-1"></i>
-                  فاکتور
-                </button>
-                {/* سایر دکمه‌ها */}
-              </td>
-            </tr>
+export default function OrdersList({ 
+  orders, 
+  onOrderClick, 
+  onShowInvoice, 
+  onEditOrder,
+  isLoading = false,
+  userRole = 'SALES_REP'
+}) {
+  // حالت اسکلتون برای زمانی که در حال لودینگ هستیم
+  if (isLoading) {
+    return (
+      <Box sx={{ p: { xs: 1, sm: 2 } }}>
+        <Grid container spacing={3}>
+          {/* 12 اسکلتون برای پر کردن صفحه */}
+          {Array.from(new Array(12)).map((_, index) => (
+            <Grid item xs={12} sm={6} lg={4} key={index}>
+              <Skeleton 
+                variant="rectangular" 
+                height={200} 
+                sx={{ 
+                  borderRadius: 2,
+                  mb: 1
+                }} 
+              />
+              <Box sx={{ pt: 0.5 }}>
+                <Skeleton variant="text" width="60%" />
+                <Skeleton variant="text" width="40%" />
+                <Skeleton variant="text" width="80%" />
+              </Box>
+            </Grid>
           ))}
-        </tbody>
-      </table>
-
-      {selectedOrder && (
-        <InvoiceModal
-          order={selectedOrder}
-          show={showInvoice}
-          onClose={() => setShowInvoice(false)}
-        />
-      )}
-    </>
-  )
-}
-
-function getStatusBadge(status) {
-  const badges = {
-    PENDING: 'bg-warning',
-    PAID: 'bg-success',
-    CANCELLED: 'bg-danger'
+        </Grid>
+      </Box>
+    );
   }
-  return badges[status] || 'bg-secondary'
-}
 
-function getStatusText(status) {
-  const texts = {
-    PENDING: 'در انتظار پرداخت',
-    PAID: 'پرداخت شده',
-    CANCELLED: 'لغو شده'
+  // حالت خالی - وقتی داده‌ها لود شده اما سفارشی وجود ندارد
+  if (orders.length === 0) {
+    return (
+      <Box textAlign="center" py={8}>
+        <Typography variant="h6" color="text.secondary" gutterBottom>
+          سفارشی یافت نشد
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          هیچ سفارشی با معیارهای جستجوی شما مطابقت ندارد
+        </Typography>
+      </Box>
+    );
   }
-  return texts[status] || status
+
+  // حالت عادی - نمایش سفارشات
+  return (
+    <Box sx={{ p: { xs: 1, sm: 2 } }}>
+      <Grid container spacing={3}>
+        {orders.map((order) => (
+          <Grid item xs={12} sm={6} lg={4} key={order.id}>
+            <OrderCard
+              order={order}
+              userRole={userRole}
+              onShowInvoice={onShowInvoice}
+              onEdit={onEditOrder}
+            />
+          </Grid>
+        ))}
+      </Grid>
+    </Box>
+  );
 }

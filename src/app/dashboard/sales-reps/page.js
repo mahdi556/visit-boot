@@ -17,7 +17,7 @@ export default function SalesRepsPage() {
     phone: "",
     email: "",
     isActive: true,
-    password: "", // اضافه شده
+    password: "",
   });
 
   useEffect(() => {
@@ -50,10 +50,9 @@ export default function SalesRepsPage() {
         : "/api/sales-reps";
       const method = editingRep ? "PUT" : "POST";
 
-      // فقط فیلدهای لازم را ارسال کن
       const submitData = { ...formData };
       if (!submitData.password) {
-        delete submitData.password; // اگر رمز خالی است، ارسال نشود
+        delete submitData.password;
       }
 
       const response = await fetch(url, {
@@ -80,7 +79,6 @@ export default function SalesRepsPage() {
         setShowModal(false);
         resetForm();
 
-        // نمایش پیام موفقیت با اطلاعات کاربر
         if (result.userCredentials) {
           alert(
             `ویزیتور با موفقیت ${
@@ -113,7 +111,7 @@ export default function SalesRepsPage() {
       phone: rep.phone || "",
       email: rep.email || "",
       isActive: rep.isActive,
-      password: "", // رمز عبور خالی برای ویرایش
+      password: "",
     });
     setShowModal(true);
   };
@@ -174,7 +172,7 @@ export default function SalesRepsPage() {
       phone: "",
       email: "",
       isActive: true,
-      password: "", // اضافه شده
+      password: "",
     });
     setEditingRep(null);
     setShowModal(false);
@@ -312,7 +310,7 @@ export default function SalesRepsPage() {
         </div>
       </div>
 
-      {/* جدول ویزیتورها */}
+      {/* کارت‌های ویزیتورها - برای موبایل */}
       <div className="card">
         <div className="card-header d-flex justify-content-between align-items-center">
           <h5 className="card-title mb-0">
@@ -331,97 +329,206 @@ export default function SalesRepsPage() {
         </div>
 
         <div className="card-body">
-          <div className="table-responsive">
-            <table className="table table-striped table-hover">
-              <thead>
-                <tr>
-                  <th>کد</th>
-                  <th>نام</th>
-                  <th>تلفن</th>
-                  <th>ایمیل</th>
-                  <th>تعداد سفارشات</th>
-                  <th>وضعیت</th>
-                  <th>تاریخ ایجاد</th>
-                  <th>عملیات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {salesReps.map((rep) => (
-                  <tr key={rep.id}>
-                    <td>
-                      <strong className="text-primary">{rep.code}</strong>
-                    </td>
-                    <td>
-                      <div className="fw-bold">{rep.name}</div>
-                    </td>
-                    <td>{rep.phone || "-"}</td>
-                    <td>{rep.email || "-"}</td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          rep._count?.orders > 0 ? "bg-info" : "bg-secondary"
-                        }`}
-                      >
-                        {rep._count?.orders || 0} سفارش
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          rep.isActive ? "bg-success" : "bg-danger"
-                        }`}
-                      >
-                        {rep.isActive ? "فعال" : "غیرفعال"}
-                      </span>
-                    </td>
-                    <td>
-                      {new Date(rep.createdAt).toLocaleDateString("fa-IR")}
-                    </td>
-                    <td>
-                      <div className="btn-group btn-group-sm">
-                        <button
-                          className="btn btn-outline-primary"
-                          onClick={() => handleEdit(rep)}
-                          title="ویرایش ویزیتور"
-                        >
-                          <i className="bi bi-pencil"></i>
-                        </button>
-                        <button
-                          className={`btn ${
-                            rep.isActive
-                              ? "btn-outline-warning"
-                              : "btn-outline-success"
-                          }`}
-                          onClick={() =>
-                            handleToggleStatus(rep.id, rep.isActive)
-                          }
-                          title={rep.isActive ? "غیرفعال کردن" : "فعال کردن"}
-                        >
-                          <i
-                            className={`bi ${
-                              rep.isActive ? "bi-pause" : "bi-play"
-                            }`}
-                          ></i>
-                        </button>
-                        <button
-                          className="btn btn-outline-danger"
-                          onClick={() => handleDelete(rep.id)}
-                          title="حذف ویزیتور"
-                          disabled={rep._count?.orders > 0}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
-                      </div>
-                      {rep._count?.orders > 0 && (
-                        <small className="text-muted d-block mt-1">
-                          دارای {rep._count.orders} سفارش
-                        </small>
-                      )}
-                    </td>
+          {/* نمایش جدول در دسکتاپ */}
+          <div className="d-none d-lg-block">
+            <div className="table-responsive">
+              <table className="table table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th>کد</th>
+                    <th>نام</th>
+                    <th>تلفن</th>
+                    <th>ایمیل</th>
+                    <th>تعداد سفارشات</th>
+                    <th>وضعیت</th>
+                    <th>تاریخ ایجاد</th>
+                    <th>عملیات</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {salesReps.map((rep) => (
+                    <tr key={rep.id}>
+                      <td>
+                        <strong className="text-primary">{rep.code}</strong>
+                      </td>
+                      <td>
+                        <div className="fw-bold">{rep.name}</div>
+                      </td>
+                      <td>{rep.phone || "-"}</td>
+                      <td>{rep.email || "-"}</td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            rep._count?.orders > 0 ? "bg-info" : "bg-secondary"
+                          }`}
+                        >
+                          {rep._count?.orders || 0} سفارش
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            rep.isActive ? "bg-success" : "bg-danger"
+                          }`}
+                        >
+                          {rep.isActive ? "فعال" : "غیرفعال"}
+                        </span>
+                      </td>
+                      <td>
+                        {new Date(rep.createdAt).toLocaleDateString("fa-IR")}
+                      </td>
+                      <td>
+                        <div className="btn-group btn-group-sm">
+                          <button
+                            className="btn btn-outline-primary"
+                            onClick={() => handleEdit(rep)}
+                            title="ویرایش ویزیتور"
+                          >
+                            <i className="bi bi-pencil"></i>
+                          </button>
+                          <button
+                            className={`btn ${
+                              rep.isActive
+                                ? "btn-outline-warning"
+                                : "btn-outline-success"
+                            }`}
+                            onClick={() =>
+                              handleToggleStatus(rep.id, rep.isActive)
+                            }
+                            title={rep.isActive ? "غیرفعال کردن" : "فعال کردن"}
+                          >
+                            <i
+                              className={`bi ${
+                                rep.isActive ? "bi-pause" : "bi-play"
+                              }`}
+                            ></i>
+                          </button>
+                          <button
+                            className="btn btn-outline-danger"
+                            onClick={() => handleDelete(rep.id)}
+                            title="حذف ویزیتور"
+                            disabled={rep._count?.orders > 0}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </div>
+                        {rep._count?.orders > 0 && (
+                          <small className="text-muted d-block mt-1">
+                            دارای {rep._count.orders} سفارش
+                          </small>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* نمایش کارت در موبایل */}
+          <div className="d-lg-none">
+            <div className="row g-3">
+              {salesReps.map((rep) => (
+                <div key={rep.id} className="col-12">
+                  <div className="card border">
+                    <div className="card-body">
+                      <div className="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                          <h6 className="card-title mb-1 text-primary">
+                            {rep.name}
+                          </h6>
+                          <small className="text-muted">کد: {rep.code}</small>
+                        </div>
+                        <span
+                          className={`badge ${
+                            rep.isActive ? "bg-success" : "bg-danger"
+                          }`}
+                        >
+                          {rep.isActive ? "فعال" : "غیرفعال"}
+                        </span>
+                      </div>
+
+                      <div className="row g-2 mb-3">
+                        <div className="col-6">
+                          <small className="text-muted d-block">تلفن</small>
+                          <span className="fw-medium">
+                            {rep.phone || "-"}
+                          </span>
+                        </div>
+                        <div className="col-6">
+                          <small className="text-muted d-block">ایمیل</small>
+                          <span className="fw-medium">
+                            {rep.email || "-"}
+                          </span>
+                        </div>
+                        <div className="col-6">
+                          <small className="text-muted d-block">سفارشات</small>
+                          <span
+                            className={`badge ${
+                              rep._count?.orders > 0
+                                ? "bg-info"
+                                : "bg-secondary"
+                            }`}
+                          >
+                            {rep._count?.orders || 0} سفارش
+                          </span>
+                        </div>
+                        <div className="col-6">
+                          <small className="text-muted d-block">
+                            تاریخ ایجاد
+                          </small>
+                          <span className="fw-medium">
+                            {new Date(rep.createdAt).toLocaleDateString("fa-IR")}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div className="btn-group btn-group-sm">
+                          <button
+                            className="btn btn-outline-primary"
+                            onClick={() => handleEdit(rep)}
+                            title="ویرایش ویزیتور"
+                          >
+                            <i className="bi bi-pencil"></i>
+                          </button>
+                          <button
+                            className={`btn ${
+                              rep.isActive
+                                ? "btn-outline-warning"
+                                : "btn-outline-success"
+                            }`}
+                            onClick={() =>
+                              handleToggleStatus(rep.id, rep.isActive)
+                            }
+                            title={rep.isActive ? "غیرفعال کردن" : "فعال کردن"}
+                          >
+                            <i
+                              className={`bi ${
+                                rep.isActive ? "bi-pause" : "bi-play"
+                              }`}
+                            ></i>
+                          </button>
+                          <button
+                            className="btn btn-outline-danger"
+                            onClick={() => handleDelete(rep.id)}
+                            title="حذف ویزیتور"
+                            disabled={rep._count?.orders > 0}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </div>
+                        {rep._count?.orders > 0 && (
+                          <small className="text-muted text-end">
+                            دارای {rep._count.orders} سفارش
+                          </small>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {salesReps.length === 0 && (
@@ -524,7 +631,7 @@ export default function SalesRepsPage() {
                       placeholder="email@example.com"
                     />
                   </div>
-                  {/* فیلد رمز عبور - فقط در حالت ویرایش یا برای کاربر جدید */}
+
                   {(editingRep || !editingRep) && (
                     <div className="mb-3">
                       <label className="form-label">
@@ -551,6 +658,7 @@ export default function SalesRepsPage() {
                       </small>
                     </div>
                   )}
+
                   <div className="mb-3">
                     <div className="form-check">
                       <input

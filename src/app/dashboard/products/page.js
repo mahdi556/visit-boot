@@ -3,21 +3,53 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  Typography,
+  Chip,
+  IconButton,
+  Button,
+  Box,
+  Stack,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select
+} from "@mui/material";
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Visibility as ViewIcon,
+  Add as AddIcon,
+  Inventory as InventoryIcon
+} from "@mui/icons-material";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [imageLoadedStates, setImageLoadedStates] = useState({});
+  
   const [formData, setFormData] = useState({
     name: "",
-    price: "", // این همان قیمت پایه است
+    price: "",
     category: "",
     currentStock: "",
     weight: "",
     unit: "",
     code: "",
     description: "",
+    image: ""
   });
 
   useEffect(() => {
@@ -34,6 +66,21 @@ export default function ProductsPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleImageLoad = (productId) => {
+    setImageLoadedStates(prev => ({
+      ...prev,
+      [productId]: true
+    }));
+  };
+
+  const handleImageError = (productId, e) => {
+    e.target.src = "/images/default-product.jpg";
+    setImageLoadedStates(prev => ({
+      ...prev,
+      [productId]: true
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -87,6 +134,7 @@ export default function ProductsPage() {
       unit: product.unit || "",
       code: product.code || "",
       description: product.description || "",
+      image: product.image || "",
     });
     setShowModal(true);
   };
@@ -124,6 +172,7 @@ export default function ProductsPage() {
       unit: "",
       code: "",
       description: "",
+      image: ""
     });
     setEditingProduct(null);
   };
@@ -142,367 +191,411 @@ export default function ProductsPage() {
     return new Date(dateString).toLocaleDateString("fa-IR");
   };
 
+  const getStockColor = (stock) => {
+    if (stock > 10) return "success";
+    if (stock > 0) return "warning";
+    return "error";
+  };
+
+  const getCategoryColor = (category) => {
+    const colors = {
+      "لبنیات": "primary",
+      "نوشیدنی": "secondary",
+      "خشکبار": "warning",
+      "تنقلات": "info",
+      "کنسرو": "success",
+      "روغن": "error",
+      "غلات": "default",
+      "پروتئین": "primary",
+      "میوه و سبزی": "success",
+      "سایر": "default"
+    };
+    return colors[category] || "default";
+  };
+
   if (isLoading) {
     return (
-      <div className="container-fluid">
-        <div className="d-flex justify-content-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">در حال بارگذاری...</span>
-          </div>
-        </div>
-      </div>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+        <Typography variant="body1" sx={{ ml: 2 }}>
+          در حال بارگذاری محصولات...
+        </Typography>
+      </Box>
     );
   }
 
   return (
     <div className="container-fluid">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="h3 mb-0 fw-bold">مدیریت محصولات</h1>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <i className="bi bi-plus-circle me-2"></i>
-          محصول جدید
-        </button>
-      </div>
-
-      <div className="card">
-        <div className="card-body">
-          <div className="table-responsive">
-            <table className="table table-striped table-hover">
-              <thead>
-                <tr>
-                  <th>نام محصول</th>
-                  <th>کد محصول</th>
-                  <th>دسته‌بندی</th>
-                  <th>قیمت</th>
-                  <th>وزن/واحد</th>
-                  <th>موجودی</th>
-                  <th>تاریخ ایجاد</th>
-                  <th>عملیات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td>
-                      <div className="fw-bold">{product.name}</div>
-                      {product.description && (
-                        <small
-                          className="text-muted d-block"
-                          style={{ fontSize: "0.8rem" }}
-                        >
-                          {product.description.length > 50
-                            ? `${product.description.substring(0, 50)}...`
-                            : product.description}
-                        </small>
-                      )}
-                    </td>
-                    <td>
-                      {product.code ? (
-                        <span className="badge bg-info">{product.code}</span>
-                      ) : (
-                        <span className="text-muted">ندارد</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className="badge bg-secondary">
-                        {product.category}
-                      </span>
-                    </td>
-                    <td className="text-success fw-bold">
-                      {formatCurrency(product.price)}
-                    </td>
-                    <td>
-                      {product.weight ? (
-                        <span className="text-muted">
-                          {product.weight} {product.unit || "گرم"}
-                        </span>
-                      ) : (
-                        <span className="text-muted">تعریف نشده</span>
-                      )}
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          product.currentStock > 10
-                            ? "bg-success"
-                            : product.currentStock > 0
-                            ? "bg-warning"
-                            : "bg-danger"
-                        }`}
-                      >
-                        {product.currentStock} عدد
-                      </span>
-                    </td>
-                    <td>{formatDate(product.createdAt)}</td>
-                    <td>
-                      <div className="btn-group btn-group-sm">
-                        <Link
-                          href={`/dashboard/products/${product.id}`}
-                          className="btn btn-outline-info"
-                          title="مشاهده جزئیات"
-                        >
-                          <i className="bi bi-eye"></i>
-                        </Link>
-                        <button
-                          className="btn btn-outline-primary"
-                          onClick={() => handleEdit(product)}
-                          title="ویرایش محصول"
-                        >
-                          <i className="bi bi-pencil"></i>
-                        </button>
-                        <button
-                          className="btn btn-outline-danger"
-                          onClick={() => handleDelete(product.id)}
-                          title="حذف محصول"
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {products.length === 0 && (
-            <div className="text-center py-5">
-              <i className="bi bi-box display-1 text-muted mb-3"></i>
-              <p className="text-muted">هیچ محصولی یافت نشد</p>
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowModal(true)}
-              >
-                افزودن اولین محصول
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Modal برای افزودن/ویرایش محصول */}
-      {showModal && (
-        <div
-          className="modal show d-block"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      {/* هدر صفحه */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
+            مدیریت محصولات
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            مشاهده، ویرایش و مدیریت کلیه محصولات
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setShowModal(true)}
+          size="large"
         >
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  {editingProduct ? "ویرایش محصول" : "افزودن محصول جدید"}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={handleCloseModal}
-                ></button>
-              </div>
-              <form onSubmit={handleSubmit}>
-                <div className="modal-body">
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">نام محصول *</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={formData.name}
-                          onChange={(e) =>
-                            setFormData({ ...formData, name: e.target.value })
-                          }
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">کد محصول</label>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={formData.code}
-                          onChange={(e) =>
-                            setFormData({ ...formData, code: e.target.value })
-                          }
-                          placeholder="اختیاری"
-                        />
-                      </div>
-                    </div>
-                  </div>
+          محصول جدید
+        </Button>
+      </Box>
 
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          قیمت پایه (مصرف کننده) *
-                        </label>
-                        <input
-                          type="number"
-                          className="form-control"
-                          value={formData.retailPrice}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              retailPrice: e.target.value,
-                            })
-                          }
-                          required
-                          min="0"
-                          step="1000"
-                          placeholder="قیمت فروش به مصرف کننده"
-                        />
-                        <small className="text-muted">
-                          قیمت تک عددی برای مصرف کننده نهایی
-                        </small>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">
-                          قیمت پایه (فروشگاه) *
-                        </label>
-                        <input
-                          type="number"
-                          className="form-control"
-                          value={formData.wholesalePrice}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              wholesalePrice: e.target.value,
-                            })
-                          }
-                          required
-                          min="0"
-                          step="1000"
-                          placeholder="قیمت فروش به فروشگاه"
-                        />
-                        <small className="text-muted">
-                          قیمت پایه برای فروشگاه‌ها (بدون تخفیف)
-                        </small>
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="mb-3">
-                        <label className="form-label">دسته‌بندی *</label>
-                        <select
-                          className="form-select"
-                          value={formData.category}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              category: e.target.value,
-                            })
-                          }
-                          required
-                        >
-                          <option value="">انتخاب کنید</option>
-                          <option value="لبنیات">لبنیات</option>
-                          <option value="نوشیدنی">نوشیدنی</option>
-                          <option value="خشکبار">خشکبار</option>
-                          <option value="تنقلات">تنقلات</option>
-                          <option value="کنسرو">کنسرو</option>
-                          <option value="روغن">روغن</option>
-                          <option value="غلات">غلات</option>
-                          <option value="پروتئین">پروتئین</option>
-                          <option value="میوه و سبزی">میوه و سبزی</option>
-                          <option value="سایر">سایر</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="row">
-                    <div className="col-md-4">
-                      <div className="mb-3">
-                        <label className="form-label">موجودی اولیه *</label>
-                        <input
-                          type="number"
-                          className="form-control"
-                          value={formData.currentStock}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              currentStock: e.target.value,
-                            })
-                          }
-                          required
-                          min="0"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-md-4">
-                      <div className="mb-3">
-                        <label className="form-label">وزن</label>
-                        <input
-                          type="number"
-                          className="form-control"
-                          value={formData.weight}
-                          onChange={(e) =>
-                            setFormData({ ...formData, weight: e.target.value })
-                          }
-                          placeholder="اختیاری"
-                          min="0"
-                          step="0.1"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-md-4">
-                      <div className="mb-3">
-                        <label className="form-label">واحد</label>
-                        <select
-                          className="form-select"
-                          value={formData.unit}
-                          onChange={(e) =>
-                            setFormData({ ...formData, unit: e.target.value })
-                          }
-                        >
-                          <option value="">انتخاب واحد</option>
-                          <option value="گرم">گرم</option>
-                          <option value="کیلوگرم">کیلوگرم</option>
-                          <option value="میلی‌لیتر">میلی‌لیتر</option>
-                          <option value="لیتر">لیتر</option>
-                          <option value="عدد">عدد</option>
-                          <option value="بسته">بسته</option>
-                          <option value="کارتن">کارتن</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">توضیحات</label>
-                    <textarea
-                      className="form-control"
-                      rows="3"
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          description: e.target.value,
-                        })
-                      }
-                      placeholder="توضیحات اختیاری درباره محصول..."
-                    />
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleCloseModal}
+      {/* لیست محصولات به صورت کارت */}
+      <Grid container spacing={3}>
+        {products.map((product) => (
+          <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+            <Card 
+              sx={{ 
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: 4
+                }
+              }}
+            >
+              {/* تصویر محصول */}
+              <Box sx={{ 
+                height: 200, 
+                position: 'relative',
+                backgroundColor: '#f8f9fa',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <img
+                  src={`/images/products/${product.code}.jpg`}
+                  className="w-100 h-100"
+                  alt={product.name}
+                  style={{
+                    objectFit: "contain",
+                    objectPosition: "center",
+                    backgroundColor: "#f8f9fa",
+                  }}
+                  onLoad={() => handleImageLoad(product.id)}
+                  onError={(e) => handleImageError(product.id, e)}
+                />
+                {!imageLoadedStates[product.id] && (
+                  <CircularProgress 
+                    size={40} 
+                    sx={{ 
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)'
+                    }} 
+                  />
+                )}
+              </Box>
+              
+              <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+                {/* عنوان و دسته‌بندی */}
+                <Typography variant="h6" component="h2" gutterBottom noWrap>
+                  {product.name}
+                </Typography>
+                
+                {product.description && (
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      mb: 2,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}
                   >
-                    انصراف
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    {editingProduct ? "بروزرسانی محصول" : "ایجاد محصول"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+                    {product.description}
+                  </Typography>
+                )}
+
+                {/* کد محصول */}
+                {product.code && (
+                  <Chip
+                    label={`کد: ${product.code}`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ mb: 1, mr: 1 }}
+                  />
+                )}
+
+                {/* دسته‌بندی */}
+                <Chip
+                  label={product.category}
+                  color={getCategoryColor(product.category)}
+                  size="small"
+                  sx={{ mb: 1 }}
+                />
+
+                {/* اطلاعات قیمت و موجودی */}
+                <Stack spacing={1} mt={2}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      قیمت:
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold" color="success.main">
+                      {formatCurrency(product.price)}
+                    </Typography>
+                  </Box>
+
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      وزن:
+                    </Typography>
+                    <Typography variant="body2">
+                      {product.weight ? `${product.weight} ${product.unit || "گرم"}` : "تعریف نشده"}
+                    </Typography>
+                  </Box>
+
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      موجودی:
+                    </Typography>
+                    <Chip
+                      label={`${product.currentStock} عدد`}
+                      color={getStockColor(product.currentStock)}
+                      size="small"
+                    />
+                  </Box>
+
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body2" color="text.secondary">
+                      تاریخ ایجاد:
+                    </Typography>
+                    <Typography variant="body2">
+                      {formatDate(product.createdAt)}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+
+              {/* دکمه‌های عملیات */}
+              <Box sx={{ p: 2, pt: 0 }}>
+                <Stack direction="row" spacing={1} justifyContent="space-between">
+                  <IconButton
+                    component={Link}
+                    href={`/dashboard/products/${product.id}`}
+                    color="info"
+                    size="small"
+                    title="مشاهده جزئیات"
+                  >
+                    <ViewIcon />
+                  </IconButton>
+                  
+                  <IconButton
+                    onClick={() => handleEdit(product)}
+                    color="primary"
+                    size="small"
+                    title="ویرایش محصول"
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  
+                  <IconButton
+                    onClick={() => handleDelete(product.id)}
+                    color="error"
+                    size="small"
+                    title="حذف محصول"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Stack>
+              </Box>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* حالت بدون محصول */}
+      {products.length === 0 && (
+        <Box textAlign="center" py={10}>
+          <InventoryIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            هیچ محصولی یافت نشد
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            برای شروع کار اولین محصول خود را ایجاد کنید
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setShowModal(true)}
+            size="large"
+          >
+            افزودن اولین محصول
+          </Button>
+        </Box>
       )}
+
+      {/* مودال ایجاد/ویرایش محصول */}
+      <Dialog 
+        open={showModal} 
+        onClose={handleCloseModal}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingProduct ? "ویرایش محصول" : "افزودن محصول جدید"}
+        </DialogTitle>
+        
+        <form onSubmit={handleSubmit}>
+          <DialogContent>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="نام محصول"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  margin="normal"
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="کد محصول"
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  placeholder="اختیاری"
+                  margin="normal"
+                  helperText="کد محصول برای نام فایل تصویر استفاده می‌شود"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="قیمت پایه (مصرف کننده)"
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                  margin="normal"
+                  inputProps={{ min: "0", step: "1000" }}
+                  helperText="قیمت تک عددی برای مصرف کننده نهایی"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="آدرس تصویر محصول (اختیاری)"
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  placeholder="https://example.com/image.jpg"
+                  margin="normal"
+                  helperText="در صورت عدم تعریف، تصویر از /images/products/{کد-محصول}.jpg لود می‌شود"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth margin="normal" required>
+                  <InputLabel>دسته‌بندی</InputLabel>
+                  <Select
+                    value={formData.category}
+                    label="دسته‌بندی"
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  >
+                    <MenuItem value="">انتخاب کنید</MenuItem>
+                    <MenuItem value="لبنیات">لبنیات</MenuItem>
+                    <MenuItem value="نوشیدنی">نوشیدنی</MenuItem>
+                    <MenuItem value="خشکبار">خشکبار</MenuItem>
+                    <MenuItem value="تنقلات">تنقلات</MenuItem>
+                    <MenuItem value="کنسرو">کنسرو</MenuItem>
+                    <MenuItem value="روغن">روغن</MenuItem>
+                    <MenuItem value="غلات">غلات</MenuItem>
+                    <MenuItem value="پروتئین">پروتئین</MenuItem>
+                    <MenuItem value="میوه و سبزی">میوه و سبزی</MenuItem>
+                    <MenuItem value="سایر">سایر</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="موجودی اولیه"
+                  type="number"
+                  value={formData.currentStock}
+                  onChange={(e) => setFormData({ ...formData, currentStock: e.target.value })}
+                  required
+                  margin="normal"
+                  inputProps={{ min: "0" }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="وزن"
+                  type="number"
+                  value={formData.weight}
+                  onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                  margin="normal"
+                  placeholder="اختیاری"
+                  inputProps={{ min: "0", step: "0.1" }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>واحد</InputLabel>
+                  <Select
+                    value={formData.unit}
+                    label="واحد"
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  >
+                    <MenuItem value="">انتخاب واحد</MenuItem>
+                    <MenuItem value="گرم">گرم</MenuItem>
+                    <MenuItem value="کیلوگرم">کیلوگرم</MenuItem>
+                    <MenuItem value="میلی‌لیتر">میلی‌لیتر</MenuItem>
+                    <MenuItem value="لیتر">لیتر</MenuItem>
+                    <MenuItem value="عدد">عدد</MenuItem>
+                    <MenuItem value="بسته">بسته</MenuItem>
+                    <MenuItem value="کارتن">کارتن</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="توضیحات"
+                  multiline
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  margin="normal"
+                  placeholder="توضیحات اختیاری درباره محصول..."
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          
+          <DialogActions>
+            <Button onClick={handleCloseModal}>
+              انصراف
+            </Button>
+            <Button 
+              type="submit" 
+              variant="contained"
+            >
+              {editingProduct ? "بروزرسانی محصول" : "ایجاد محصول"}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </div>
   );
 }

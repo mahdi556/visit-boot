@@ -8,23 +8,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// prisma/schema.prisma
+// مدل کاربران
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  firstName String
-  lastName  String
-  phone     String?
-  role      UserRole @default(SALES_REP)
-  salesRepId Int?    // اضافه کردن این فیلد
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  username   String   @unique
+  email      String   @unique
+  password   String
+  firstName  String
+  lastName   String
+  phone      String?
+  role       UserRole @default(SALES_REP)
+  salesRepId Int?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  orders    Order[]
-  salesRep  SalesRep? @relation(fields: [salesRepId], references: [id]) // اضافه کردن این رابطه
+  // روابط
+  orders       Order[]
+  salesRep     SalesRep?      @relation(fields: [salesRepId], references: [id])
+  PriceHistory PriceHistory[]
+  ActivityLog  ActivityLog[]
 
   @@map("users")
 }
@@ -35,6 +38,25 @@ enum UserRole {
   MANAGER
 }
 
+// مدل فروشندگان
+model SalesRep {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // روابط
+  orders Order[]
+  users  User[]
+
+  @@map("sales_reps")
+}
+
+// مدل محصولات
 model Product {
   id          Int      @id @default(autoincrement())
   code        String   @unique
@@ -44,93 +66,119 @@ model Product {
   weight      Float?
   unit        String
   description String?
-  image       String?  // اضافه کردن فیلد عکس
+  image       String?
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orderItems OrderItem[]
-  pricingPlans PricingPlanProduct[]
-  discountGroups DiscountGroupProduct[]
+  // روابط
+  orderItems            OrderItem[]
+  pricingPlanProducts   PricingPlanProduct[]
+  discountGroupProducts DiscountGroupProduct[]
+  Inventory             Inventory?
+  PriceHistory          PriceHistory[]
+
+  @@map("products")
 }
 
-model Route {
-  id          Int     @id @default(autoincrement())
-  name        String
-  driverName  String?
-  vehicleType String?
-  color       String  @default("#6C63FF")
-  isActive    Boolean @default(true)
-
-  coordinates Json?
-  area        Float?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  stores     Store[]
-  deliveries Delivery[]
-}
-
-model Delivery {
-  id           Int      @id @default(autoincrement())
-  routeId      Int
-  storeCode    String
-  deliveryDate DateTime
-  status       String   @default("PENDING")
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  route Route @relation(fields: [routeId], references: [id])
-  store Store @relation(fields: [storeCode], references: [code])
-}
-
+// مدل فروشگاه‌ها
 model Store {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
+  id        Int       @id @default(autoincrement())
+  code      String    @unique
   name      String
   ownerName String?
   phone     String?
   address   String
-  storeType String   @default("SUPERMARKET")
+  storeType StoreType @default(SUPERMARKET)
   latitude  Float?
   longitude Float?
+
+  // سیستم اعتباری
+  creditEnabled Boolean    @default(false)
+  creditLimit   Float?
+  creditDays    Int?
+  creditType    CreditType @default(CASH)
+
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders         Order[]
-  deliveryZone   DeliveryZone? @relation(fields: [deliveryZoneId], references: [id])
-  deliveryZoneId Int?
-  route          Route?        @relation(fields: [routeId], references: [id])
-  routeId        Int?
-  deliveries     Delivery[]
+  // روابط
+  orders             Order[]
+  deliveryZone       DeliveryZone?       @relation(fields: [deliveryZoneId], references: [id])
+  deliveryZoneId     Int?
+  route              Route?              @relation(fields: [routeId], references: [id])
+  routeId            Int?
+  deliveries         Delivery[]
+  creditTransactions CreditTransaction[]
+  creditPayments     CreditPayment[]
+
+  @@map("stores")
 }
 
+enum StoreType {
+  SUPERMARKET
+  GROCERY
+  CONVENIENCE
+  HYPERMARKET
+  OTHER
+}
+
+// مدل سفارشات
 model Order {
-  id            Int      @id @default(autoincrement())
+  id            Int           @id @default(autoincrement())
   storeCode     String
   userId        Int
-  salesRepId    Int?     // اضافه کردن این فیلد جدید
+  salesRepId    Int?
   totalAmount   Float
-  status        String   @default("PENDING")
+  status        OrderStatus   @default(PENDING)
   notes         String?
-  orderDate     DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  orderDate     DateTime      @default(now())
+  deliveryDate  DateTime?
+  paymentStatus PaymentStatus @default(UNPAID)
+  paymentMethod OrderPaymentMethod @default(CASH)
+  cashPaymentDetails Json?             
+  creditDays    Int?   
   pricingPlanId Int?
-  totalDiscount Float?   @default(0)
-  finalAmount   Float? // totalAmount - totalDiscount
+  totalDiscount Float?        @default(0)
+  finalAmount   Float?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  pricingPlan PricingPlan? @relation(fields: [pricingPlanId], references: [id])
-
-  store Store       @relation(fields: [storeCode], references: [code])
-  user  User        @relation(fields: [userId], references: [id])
-  salesRep    SalesRep?    @relation(fields: [salesRepId], references: [id]) // اضافه کردن این رابطه
-  items OrderItem[]
+  // روابط
+  pricingPlan        PricingPlan?        @relation(fields: [pricingPlanId], references: [id])
+  store              Store               @relation(fields: [storeCode], references: [code])
+  user               User                @relation(fields: [userId], references: [id])
+  salesRep           SalesRep?           @relation(fields: [salesRepId], references: [id])
+  items              OrderItem[]
+  creditTransactions CreditTransaction[]
 
   @@map("orders")
 }
 
+enum OrderPaymentMethod {
+  CASH
+  CREDIT
+  CHEQUE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+}
+
+// مدل آیتم‌های سفارش
 model OrderItem {
   id          Int    @id @default(autoincrement())
   orderId     Int
@@ -139,12 +187,60 @@ model OrderItem {
   price       Float
   totalPrice  Float?
 
+  // روابط
   order   Order   @relation(fields: [orderId], references: [id])
   product Product @relation(fields: [productCode], references: [code])
 
   @@map("order_items")
 }
 
+// مدل مسیرها
+model Route {
+  id          Int      @id @default(autoincrement())
+  name        String
+  driverName  String?
+  vehicleType String?
+  color       String   @default("#6C63FF")
+  isActive    Boolean  @default(true)
+  coordinates Json?
+  area        Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // روابط
+  stores     Store[]
+  deliveries Delivery[]
+
+  @@map("routes")
+}
+
+// مدل تحویل‌ها
+model Delivery {
+  id           Int            @id @default(autoincrement())
+  routeId      Int
+  storeCode    String
+  deliveryDate DateTime
+  status       DeliveryStatus @default(PENDING)
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // روابط
+  route Route @relation(fields: [routeId], references: [id])
+  store Store @relation(fields: [storeCode], references: [code])
+
+  @@map("deliveries")
+}
+
+enum DeliveryStatus {
+  PENDING
+  IN_PROGRESS
+  DELIVERED
+  FAILED
+  RESCHEDULED
+}
+
+// مدل مناطق تحویل
 model DeliveryZone {
   id           Int      @id @default(autoincrement())
   name         String
@@ -153,12 +249,17 @@ model DeliveryZone {
   deliveryTime Int
   color        String   @default("#6C63FF")
   area         Float?
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // روابط
   stores Store[]
+
+  @@map("delivery_zones")
 }
 
+// مدل پلن‌های قیمت‌گذاری
 model PricingPlan {
   id          Int       @id @default(autoincrement())
   name        String
@@ -169,10 +270,14 @@ model PricingPlan {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // روابط
   planProducts PricingPlanProduct[]
   orders       Order[]
+
+  @@map("pricing_plans")
 }
 
+// مدل محصولات پلن قیمت‌گذاری
 model PricingPlanProduct {
   id            Int     @id @default(autoincrement())
   pricingPlanId Int
@@ -181,13 +286,15 @@ model PricingPlanProduct {
   discountRate  Float   @default(0)
   description   String?
 
+  // روابط
   pricingPlan PricingPlan @relation(fields: [pricingPlanId], references: [id])
   product     Product     @relation(fields: [productCode], references: [code])
 
   @@unique([pricingPlanId, productCode, minQuantity])
+  @@map("pricing_plan_products")
 }
 
-// مدل‌های جدید برای گروه‌های تخفیف
+// مدل گروه‌های تخفیف
 model DiscountGroup {
   id          Int      @id @default(autoincrement())
   name        String
@@ -196,43 +303,176 @@ model DiscountGroup {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // روابط
   groupProducts DiscountGroupProduct[]
   groupTiers    DiscountGroupTier[]
+
+  @@map("discount_groups")
 }
 
+// مدل محصولات گروه تخفیف
 model DiscountGroupProduct {
   id              Int    @id @default(autoincrement())
   discountGroupId Int
   productCode     String
 
+  // روابط
   discountGroup DiscountGroup @relation(fields: [discountGroupId], references: [id])
   product       Product       @relation(fields: [productCode], references: [code])
 
   @@unique([discountGroupId, productCode])
+  @@map("discount_group_products")
 }
 
+// مدل سطوح تخفیف
 model DiscountGroupTier {
   id              Int     @id @default(autoincrement())
   discountGroupId Int
-  minQuantity     Int // حداقل تعداد از گروه
-  discountRate    Float // درصد تخفیف
+  minQuantity     Int
+  discountRate    Float
   description     String?
 
+  // روابط
   discountGroup DiscountGroup @relation(fields: [discountGroupId], references: [id])
 
   @@unique([discountGroupId, minQuantity])
+  @@map("discount_group_tiers")
 }
-// مدل ویزیتور را اضافه کنید (این مدل جدید است)
-model SalesRep {
+
+// سیستم اعتباری
+
+enum CreditType {
+  CASH
+  CREDIT
+  CHEQUE
+}
+
+// مدل تراکنش‌های اعتباری
+model CreditTransaction {
+  id           Int                     @id @default(autoincrement())
+  storeId      Int
+  orderId      Int?
+  amount       Float
+  type         CreditTransactionType
+  description  String?
+  dueDate      DateTime?
+  chequeNumber String?
+  status       CreditTransactionStatus @default(PENDING)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  // روابط
+  store Store  @relation(fields: [storeId], references: [id])
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@map("credit_transactions")
+}
+
+enum CreditTransactionType {
+  INVOICE
+  PAYMENT
+  ADJUSTMENT
+  CHEQUE
+  REFUND
+}
+
+enum CreditTransactionStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+  RETURNED
+}
+
+// مدل پرداخت‌های اعتباری
+model CreditPayment {
+  id            Int           @id @default(autoincrement())
+  storeId       Int
+  amount        Float
+  paymentDate   DateTime
+  paymentMethod PaymentMethod
+  reference     String?
+  description   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // روابط
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@map("credit_payments")
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  CHEQUE
+  OTHER
+}
+
+// مدل موجودی محصولات
+model Inventory {
   id          Int      @id @default(autoincrement())
-  code        String   @unique
-  name        String
-  phone       String?
-  email       String?
+  productCode String
+  quantity    Int      @default(0)
+  minStock    Int      @default(10)
+  maxStock    Int?
+  location    String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orders      Order[]
-  users       User[]   // اضافه کردن این رابطه
+  // روابط
+  product Product @relation(fields: [productCode], references: [code])
+
+  @@unique([productCode])
+  @@map("inventory")
+}
+
+// مدل تاریخچه قیمت‌ها
+model PriceHistory {
+  id          Int      @id @default(autoincrement())
+  productCode String
+  oldPrice    Float
+  newPrice    Float
+  changeDate  DateTime @default(now())
+  reason      String?
+  changedBy   Int
+
+  // روابط
+  product Product @relation(fields: [productCode], references: [code])
+  user    User    @relation(fields: [changedBy], references: [id])
+
+  @@map("price_history")
+}
+
+// مدل لاگ فعالیت‌ها
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  action      String
+  entityType  String
+  entityId    Int?
+  description String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  // روابط
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}
+
+// مدل تنظیمات سیستم
+model SystemSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
 }

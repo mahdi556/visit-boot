@@ -1,4 +1,3 @@
-// 📂 src/app/dashboard/catalog/page.js
 "use client";
 
 import { useState, useEffect } from "react";
@@ -31,27 +30,56 @@ export default function CatalogPage() {
   const [showStoreResults, setShowStoreResults] = useState(false);
   const [filteredStores, setFilteredStores] = useState([]);
   const [tempOrderMode, setTempOrderMode] = useState(false);
+  const [isLoadingStores, setIsLoadingStores] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); // اضافه شده
+  const [selectedSalesRep, setSelectedSalesRep] = useState(null); // اضافه شده
 
   const router = useRouter();
 
   useEffect(() => {
+    fetchCurrentUser(); // اول کاربر جاری را بگیر
     fetchProducts();
-    fetchStores();
+    fetchAllStores();
   }, []);
 
+  // تابع جدید برای دریافت اطلاعات کاربر جاری
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const userData = await response.json();
+        setCurrentUser(userData);
+
+        // اگر کاربر ویزیتور است، salesRepId را تنظیم کن
+        if (userData.salesRepId) {
+          setSelectedSalesRep(userData.salesRepId);
+          console.log("👤 Sales rep auto-selected:", userData.salesRepId);
+        }
+      }
+    } catch (error) {
+      console.error("خطا در دریافت اطلاعات کاربر:", error);
+    }
+  };
   useEffect(() => {
     filterProducts();
   }, [products, selectedCategory, searchTerm]);
-
   useEffect(() => {
-    const filtered = stores.filter(
-      (store) =>
-        store.name?.toLowerCase().includes(storeSearch.toLowerCase()) ||
-        store.phone?.includes(storeSearch) ||
-        store.ownerName?.toLowerCase().includes(storeSearch.toLowerCase()) ||
-        store.code?.toLowerCase().includes(storeSearch.toLowerCase())
-    );
-    setFilteredStores(filtered);
+    calculateCartTotal();
+  }, [cart]); // هر بار که cart تغییر کرد، مجموع محاسبه شود
+  useEffect(() => {
+    // جستجوی real-time در فروشگاهها
+    if (storeSearch.trim()) {
+      const filtered = stores.filter(
+        (store) =>
+          store.name?.toLowerCase().includes(storeSearch.toLowerCase()) ||
+          store.phone?.includes(storeSearch) ||
+          store.ownerName?.toLowerCase().includes(storeSearch.toLowerCase()) ||
+          store.code?.toLowerCase().includes(storeSearch.toLowerCase())
+      );
+      setFilteredStores(filtered);
+    } else {
+      setFilteredStores(stores.slice(0, 50)); // نمایش 50 فروشگاه اول در حالت عادی
+    }
   }, [storeSearch, stores]);
 
   const fetchProducts = async () => {
@@ -75,16 +103,91 @@ export default function CatalogPage() {
     }
   };
 
-  const fetchStores = async () => {
+  // تابع جدید برای دریافت تمام فروشگاهها
+  const fetchAllStores = async () => {
     try {
-      const response = await fetch("/api/stores");
-      if (response.ok) {
-        const data = await response.json();
-        setStores(Array.isArray(data) ? data : []);
+      setIsLoadingStores(true);
+      let allStores = [];
+      let page = 1;
+      let hasMore = true;
+
+      // دریافت تمام صفحات فروشگاهها
+      while (hasMore) {
+        const response = await fetch(`/api/stores?page=${page}&limit=100`); // افزایش limit به 100
+        if (response.ok) {
+          const data = await response.json();
+          if (data.stores && data.stores.length > 0) {
+            allStores = [...allStores, ...data.stores];
+            hasMore = data.pagination.hasNext;
+            page++;
+          } else {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+          console.error("خطا در دریافت فروشگاه‌ها");
+        }
       }
+
+      console.log(`✅ تعداد کل فروشگاه‌ها دریافت شده: ${allStores.length}`);
+      setStores(allStores);
+      setFilteredStores(allStores.slice(0, 50)); // نمایش 50 فروشگاه اول
     } catch (error) {
       console.error("خطا در دریافت فروشگاه‌ها:", error);
       setStores([]);
+      setFilteredStores([]);
+    } finally {
+      setIsLoadingStores(false);
+    }
+  };
+
+  // تابع جدید برای جستجوی پیشرفته در فروشگاهها
+  const searchStores = async (searchQuery) => {
+    if (!searchQuery.trim()) {
+      // اگر جستجو خالی است، 50 فروشگاه اول را نمایش بده
+      setFilteredStores(stores.slice(0, 50));
+      return;
+    }
+
+    try {
+      setIsLoadingStores(true);
+
+      // جستجو در فروشگاههای موجود
+      const localFiltered = stores.filter(
+        (store) =>
+          store.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          store.phone?.includes(searchQuery) ||
+          store.ownerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          store.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          store.address?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+      // اگر در فروشگاههای موجود پیدا نشد، از API جستجو کنیم
+      if (localFiltered.length === 0) {
+        const response = await fetch(
+          `/api/stores?search=${encodeURIComponent(searchQuery)}&limit=50`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setFilteredStores(data.stores || []);
+        }
+      } else {
+        setFilteredStores(localFiltered);
+      }
+    } catch (error) {
+      console.error("خطا در جستجوی فروشگاه‌ها:", error);
+      // در صورت خطا، از جستجوی محلی استفاده کن
+      const localFiltered = stores.filter(
+        (store) =>
+          store.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          store.phone?.includes(searchQuery) ||
+          store.ownerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          store.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          store.address?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredStores(localFiltered);
+    } finally {
+      setIsLoadingStores(false);
     }
   };
 
@@ -219,7 +322,7 @@ export default function CatalogPage() {
     } catch (error) {
       console.error("خطا در محاسبه قیمت سبد:", error);
     } finally {
-      setIsCalculatingCart(false);
+      setIsCalculatingCart(false); // ✅ اصلاح شد
     }
   };
 
@@ -243,26 +346,57 @@ export default function CatalogPage() {
 
     try {
       const storeCode = tempOrderMode ? "7000" : selectedStore.code;
-      const orderStatus = "PENDING";
+      const orderStatus = deliveryStatus;
       const orderNotes = tempOrderMode
         ? "فاکتور موقت - انتساب خودکار به فروشگاه 7000"
         : "";
 
+      // محاسبه مجموع از روی cart فعلی (به جای استفاده از cartTotal state)
+      const currentCartTotal = cart.reduce(
+        (sum, item) => sum + item.totalPrice,
+        0
+      );
+      const currentTotalDiscount = cart.reduce(
+        (sum, item) => sum + item.discountAmount,
+        0
+      );
+
+      console.log("💰 Order totals:", {
+        cartTotalState: cartTotal,
+        calculatedTotal: currentCartTotal,
+        cartItems: cart,
+      });
+
       const orderData = {
         storeCode: storeCode,
         userId: 1,
+        salesRepId: selectedSalesRep,
         items: cart.map((item) => ({
           productCode: item.product.code,
           quantity: item.quantity,
           price: item.unitPrice,
         })),
-        totalAmount: cartTotal,
+        totalAmount: currentCartTotal, // استفاده از مقدار محاسبه شده
         status: orderStatus,
         notes: orderNotes,
-        discountAmount: cart.reduce(
-          (sum, item) => sum + item.discountAmount,
-          0
-        ),
+        discountAmount: currentTotalDiscount, // استفاده از مقدار محاسبه شده
+        paymentMethod: paymentMethod,
+        deliveryDate: deliveryDate,
+        ...(paymentMethod === "CHEQUE" && {
+          chequeDetails: {
+            chequeNumber: chequeDetails.chequeNumber,
+            dueDate: chequeDetails.dueDate,
+            bankName: chequeDetails.bankName,
+          },
+        }),
+        ...(paymentMethod === "CASH" &&
+          deliveryStatus === "DELIVERED" && {
+            cashPaymentDetails: cashPaymentDetails,
+          }),
+        ...(paymentMethod === "CREDIT" &&
+          selectedStore?.creditDays && {
+            creditDays: selectedStore.creditDays,
+          }),
       };
 
       const response = await fetch("/api/orders", {
@@ -276,29 +410,60 @@ export default function CatalogPage() {
       if (response.ok) {
         const result = await response.json();
 
+        let successMessage = `فاکتور با شماره ${result.orderNumber} ثبت شد.`;
         if (tempOrderMode) {
-          alert(
-            `فاکتور موقت با شماره ${result.orderNumber} ثبت شد و به فروشگاه 7000 ارسال شد.`
-          );
+          successMessage += ` (فاکتور موقت - ارسال به فروشگاه 7000)`;
         } else {
-          alert(
-            `فاکتور نهایی با شماره ${result.orderNumber} برای فروشگاه ${selectedStore.name} ثبت شد.`
-          );
+          successMessage += ` (فروشگاه: ${selectedStore.name})`;
         }
 
+        // اضافه کردن اطلاعات روش پرداخت
+        const paymentMethodText = {
+          CASH: "نقدی",
+          CREDIT: "اعتباری",
+          CHEQUE: "چکی",
+        }[paymentMethod];
+
+        successMessage += ` - روش پرداخت: ${paymentMethodText}`;
+        successMessage += ` - مبلغ: ${currentCartTotal.toLocaleString(
+          "fa-IR"
+        )} ریال`;
+
+        if (paymentMethod === "CHEQUE") {
+          successMessage += ` - شماره چک: ${chequeDetails.chequeNumber}`;
+        }
+
+        // اضافه کردن تاریخ تحویل
+        successMessage += ` - تاریخ تحویل: ${toPersianDate(deliveryDate)}`;
+
+        alert(successMessage);
+
+        // ریست فرم
         setCart([]);
         setCartTotal(0);
         setShowCartModal(false);
         setTempOrderMode(false);
+        setPaymentMethod("CASH");
+        setDeliveryStatus("PENDING");
+        setCashPaymentDetails({
+          method: "CASH",
+          cardNumber: "",
+          posDevice: "",
+        });
+        setChequeDetails({
+          chequeNumber: "",
+          dueDate: "",
+          bankName: "",
+        });
       } else {
-        throw new Error("خطا در ثبت فاکتور");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "خطا در ثبت فاکتور");
       }
     } catch (error) {
       console.error("Error submitting order:", error);
-      alert("خطا در ثبت فاکتور");
+      alert("خطا در ثبت فاکتور: " + error.message);
     }
   };
-
   const handleAddToOrder = (product) => {
     if (!selectedStore && !tempOrderMode) {
       alert(
@@ -318,6 +483,16 @@ export default function CatalogPage() {
   const handleAddToCart = async (product, calculatedPrice) => {
     await addToCart(product, calculatedPrice);
     alert(`${quantity} عدد ${product.name} به سبد خرید اضافه شد`);
+  };
+
+  // تابع جدید برای مدیریت تغییر جستجوی فروشگاه
+  const handleStoreSearchChange = (value) => {
+    setStoreSearch(value);
+    if (value.trim()) {
+      searchStores(value);
+    } else {
+      setFilteredStores(stores.slice(0, 50));
+    }
   };
 
   if (isLoading) {
@@ -349,8 +524,9 @@ export default function CatalogPage() {
         selectedCategory={selectedCategory}
         categories={categories}
         cart={cart}
+        isLoadingStores={isLoadingStores}
         onStoreSelect={setSelectedStore}
-        onStoreSearchChange={setStoreSearch}
+        onStoreSearchChange={handleStoreSearchChange}
         onShowStoreResults={setShowStoreResults}
         onTempOrderModeChange={setTempOrderMode}
         onSearchTermChange={setSearchTerm}
@@ -408,6 +584,8 @@ export default function CatalogPage() {
           onClose={() => setShowCartModal(false)}
           selectedStore={selectedStore}
           tempOrderMode={tempOrderMode}
+          selectedSalesRep={selectedSalesRep} // ارسال ویزیتور پیش‌فرض
+          onSalesRepChange={setSelectedSalesRep} // امکان تغییر ویزیتور
         />
       )}
     </div>

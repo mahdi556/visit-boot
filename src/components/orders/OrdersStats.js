@@ -2,80 +2,58 @@
 'use client';
 
 import { Grid, Card, CardContent, Typography, Box } from '@mui/material';
-import { 
-  ShoppingCart, 
-  Schedule, 
-  CheckCircle, 
-  Person, 
-  PersonOff 
+import {
+  ShoppingCart as OrderIcon,
+  Schedule as PendingIcon,
+  CheckCircle as ConfirmedIcon,
+  LocalShipping as DeliveredIcon,
+  Cancel as CancelledIcon
 } from '@mui/icons-material';
 
-export default function OrdersStats({ orders, userRole, sx = {} }) {
-  const calculateStats = () => {
-    let statsOrders = orders;
+const statItems = [
+  {
+    title: 'کل سفارشات',
+    field: 'total',
+    icon: OrderIcon,
+    color: '#1976d2'
+  },
+  {
+    title: 'در انتظار',
+    field: 'pending',
+    icon: PendingIcon,
+    color: '#ed6c02'
+  },
+  {
+    title: 'تأیید شده',
+    field: 'confirmed',
+    icon: ConfirmedIcon,
+    color: '#2e7d32'
+  },
+  {
+    title: 'تحویل شده',
+    field: 'delivered',
+    icon: DeliveredIcon,
+    color: '#9c27b0'
+  },
+  {
+    title: 'لغو شده',
+    field: 'cancelled',
+    icon: CancelledIcon,
+    color: '#d32f2f'
+  }
+];
 
-    return {
-      totalOrders: statsOrders.length,
-      pendingOrders: statsOrders.filter(order => order.status === "PENDING").length,
-      deliveredOrders: statsOrders.filter(order => order.status === "DELIVERED").length,
-      ordersWithSalesRep: statsOrders.filter(order => order.salesRepId).length,
-      ordersWithoutSalesRep: statsOrders.filter(order => !order.salesRepId).length,
-    };
-  };
-
-  const stats = calculateStats();
-
-  const statCards = [
-    {
-      title: userRole === "SALES_REP" ? "سفارشات من" : "کل سفارشات",
-      value: stats.totalOrders,
-      icon: ShoppingCart,
-      color: 'primary',
-      borderColor: 'primary.main'
-    },
-    {
-      title: "در انتظار",
-      value: stats.pendingOrders,
-      icon: Schedule,
-      color: 'warning',
-      borderColor: 'warning.main'
-    },
-    {
-      title: "تحویل شده",
-      value: stats.deliveredOrders,
-      icon: CheckCircle,
-      color: 'success',
-      borderColor: 'success.main'
-    },
-    ...(userRole !== "SALES_REP" ? [
-      {
-        title: "دارای ویزیتور",
-        value: stats.ordersWithSalesRep,
-        icon: Person,
-        color: 'info',
-        borderColor: 'info.main'
-      },
-      {
-        title: "بدون ویزیتور",
-        value: stats.ordersWithoutSalesRep,
-        icon: PersonOff,
-        color: 'secondary',
-        borderColor: 'secondary.main'
-      }
-    ] : [])
-  ];
-
+export default function OrdersStats({ stats }) {
   return (
-    <Grid container spacing={3} sx={sx}>
-      {statCards.map((stat, index) => (
-        <Grid item xs={12} sm={6} md={userRole !== "SALES_REP" ? 2.4 : 4} key={index}>
+    <Grid container spacing={3}>
+      {statItems.map((item, index) => (
+        <Grid item xs={12} sm={6} md={2.4} key={index}>
           <Card 
             sx={{ 
-              borderLeft: `4px solid`,
-              borderColor: stat.borderColor,
-              borderRadius: 2,
+              borderRadius: 3,
               boxShadow: 2,
-              height: '100%',
+              background: `linear-gradient(135deg, ${item.color}20, ${item.color}10)`,
+              border: `1px solid ${item.color}30`,
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: 'translateY(-2px)',
@@ -83,35 +61,27 @@ export default function OrdersStats({ orders, userRole, sx = {} }) {
               }
             }}
           >
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+            <CardContent sx={{ p: 3 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
-                    fontWeight="600" 
-                    gutterBottom
-                  >
-                    {stat.title}
+                  <Typography variant="h4" fontWeight="bold" color="text.primary">
+                    {stats[item.field] || 0}
                   </Typography>
-                  <Typography 
-                    variant="h4" 
-                    component="div" 
-                    fontWeight="700" 
-                    color="text.primary"
-                  >
-                    {stat.value}
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {item.title}
                   </Typography>
                 </Box>
                 <Box
                   sx={{
                     p: 1,
                     borderRadius: 2,
-                    bgcolor: `${stat.color}.light`,
-                    color: `${stat.color}.main`
+                    backgroundColor: `${item.color}20`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                 >
-                  <stat.icon />
+                  <item.icon sx={{ color: item.color, fontSize: 30 }} />
                 </Box>
               </Box>
             </CardContent>

@@ -1,0 +1,22 @@
+// در public/manifest.json
+{
+  "name": "نبات نگین آرا",
+  "short_name": "نبات نگین", 
+  "description": "سیستم مدیریت فروش و سفارش",
+  "theme_color": "#8B4513",
+  "background_color": "#2E8B57",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiPjxjaXJjbGUgY3g9Ijk2IiBjeT0iOTYiIHI9Ijk2IiBmaWxsPSIjOEI0NTEzIi8+PHBhdGggZD0iTTk2IDQwTDEyMCA4MEw5NiAxMjBMNzIgODBMOTYgNDBaIiBmaWxsPSIjRDI2OTFFIiBzdHJva2U9IiNGRkYiIHN0cm9rZS13aWR0aD0iNCIvPjxjaXJjbGUgY3g9Ijk2IiBjeT0iODAiIHI9IjEyIiBmaWxsPSIjRkZENzAwIi8+PHBhdGggZD0iTTk2IDE0MEw4NCAxNTJIMTA4TDk2IDE0MFoiIGZpbGw9IiMyMjhCMjIiLz48L3N2Zz4=",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiPjxjaXJjbGUgY3g9IjI1NiIgY3k9IjI1NiIgcj0iMjU2IiBmaWxsPSIjMkU4QjU3Ii8+PHBhdGggZD0iTTI1NiAxMjBMMzIwIDIwMEwyNTYgMjgwTDE5MiAyMDBMMjU2IDEyMFoiIGZpbGw9IiM4QjQ1MTMiIHN0cm9rZT0iI0ZGRiIgc3Ryb2tlLXdpZHRoPSI4Ii8+PGNpcmNsZSBjeD0iMjU2IiBjeT0iMjAwIiByPSIzMiIgZmlsbD0iI0ZGRDcwMCIvPjxwYXRoIGQ9Ik0yNTYgMzYwTDIyMCA0MjBIMjkyTDI1NiAzNjBaIiBmaWxsPSIjMjI4QjIyIi8+PGNpcmNsZSBjeD0iMjU2IiBjeT0iMzIwIiByPSIxNiIgZmlsbD0iI0ZGNjlCNCIvPjwvc3ZnPg==",
+      "sizes": "512x512", 
+      "type": "image/svg+xml"
+    }
+  ]
+}

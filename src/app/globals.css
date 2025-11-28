@@ -263,7 +263,7 @@ body {
 
 body {
   background-color: var(--bg-color);
-  padding-top: 70px;
+  /* padding-top: 70px; */
   color: var(--dark-color);
 }
 

@@ -1,26 +1,26 @@
 // 📂 src/components/orders/OrderEditForm.js
-'use client'
-import { 
-  Card, 
-  CardContent, 
-  Typography, 
-  Box, 
-  Grid, 
-  TextField, 
-  MenuItem, 
-  Button, 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
+"use client";
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Grid,
+  TextField,
+  MenuItem,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   IconButton,
   Alert,
-  Paper
-} from '@mui/material'
-import { Add, Remove, Save, Cancel } from '@mui/icons-material'
-import SalesRepSelector from './SalesRepSelector'
+  Paper,
+} from "@mui/material";
+import { Add, Remove, Save, Cancel } from "@mui/icons-material";
+import SalesRepSelector from "./SalesRepSelector";
 
 export default function OrderEditForm({
   order,
@@ -42,7 +42,7 @@ export default function OrderEditForm({
   onUpdateItemPrice,
   onProductChange,
   formatCurrency,
-  calculateTotal
+  calculateTotal,
 }) {
   return (
     <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2 }}>
@@ -50,7 +50,7 @@ export default function OrderEditForm({
         <Typography variant="h5" gutterBottom fontWeight="700" color="primary">
           ویرایش سفارش
         </Typography>
-        
+
         <form onSubmit={onUpdate}>
           {/* فیلدهای اصلی */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -60,7 +60,9 @@ export default function OrderEditForm({
                 fullWidth
                 label="وضعیت سفارش"
                 value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value })
+                }
                 required
                 variant="outlined"
               >
@@ -72,12 +74,14 @@ export default function OrderEditForm({
                 <MenuItem value="CANCELLED">لغو شده</MenuItem>
               </TextField>
             </Grid>
-            
+
             {isAdmin && (
               <Grid item xs={12} md={4}>
                 <SalesRepSelector
                   selectedRep={formData.salesRepId}
-                  onRepChange={(salesRepId) => setFormData({...formData, salesRepId})}
+                  onRepChange={(salesRepId) =>
+                    setFormData({ ...formData, salesRepId })
+                  }
                   salesReps={salesReps}
                 />
               </Grid>
@@ -89,12 +93,14 @@ export default function OrderEditForm({
                 fullWidth
                 label="فروشگاه"
                 value={formData.storeCode}
-                onChange={(e) => setFormData({...formData, storeCode: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, storeCode: e.target.value })
+                }
                 required
                 variant="outlined"
               >
                 <MenuItem value="">انتخاب فروشگاه</MenuItem>
-                {stores.map(store => (
+                {stores.map((store) => (
                   <MenuItem key={store.code} value={store.code}>
                     {store.name} - {store.code}
                   </MenuItem>
@@ -109,7 +115,9 @@ export default function OrderEditForm({
                 rows={3}
                 label="یادداشت"
                 value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
                 placeholder="یادداشت درباره سفارش..."
                 variant="outlined"
               />
@@ -117,7 +125,7 @@ export default function OrderEditForm({
           </Grid>
 
           {/* افزودن کالا */}
-          <Card sx={{ mb: 4, bgcolor: 'background.default' }}>
+          <Card sx={{ mb: 4, bgcolor: "background.default" }}>
             <CardContent>
               <Typography variant="h6" gutterBottom color="primary">
                 افزودن کالا به سفارش
@@ -134,7 +142,7 @@ export default function OrderEditForm({
                     size="small"
                   >
                     <MenuItem value="">انتخاب محصول</MenuItem>
-                    {products.map(product => (
+                    {products.map((product) => (
                       <MenuItem key={product.code} value={product.code}>
                         {product.name} - {formatCurrency(product.price)}
                       </MenuItem>
@@ -147,7 +155,9 @@ export default function OrderEditForm({
                     type="number"
                     label="تعداد"
                     value={newItem.quantity}
-                    onChange={(e) => setNewItem({...newItem, quantity: e.target.value})}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, quantity: e.target.value })
+                    }
                     inputProps={{ min: 1 }}
                     variant="outlined"
                     size="small"
@@ -159,9 +169,23 @@ export default function OrderEditForm({
                     type="number"
                     label="قیمت"
                     value={newItem.price}
-                    onChange={(e) => setNewItem({...newItem, price: e.target.value})}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, price: e.target.value })
+                    }
                     variant="outlined"
                     size="small"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    type="datetime-local"
+                    label="تاریخ تحویل"
+                    value={formData.deliveryDate || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, deliveryDate: e.target.value })
+                    }
+                    InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={3}>
@@ -184,7 +208,7 @@ export default function OrderEditForm({
             <Typography variant="h6" gutterBottom color="primary">
               لیست کالاها
             </Typography>
-            
+
             {orderItems.length > 0 ? (
               <TableContainer component={Paper} variant="outlined">
                 <Table>
@@ -203,7 +227,7 @@ export default function OrderEditForm({
                       <TableRow key={item.id} hover>
                         <TableCell>
                           <Typography variant="body2" fontWeight="600">
-                            {item.productName || 'محصول حذف شده'}
+                            {item.productName || "محصول حذف شده"}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -216,7 +240,9 @@ export default function OrderEditForm({
                             size="small"
                             type="number"
                             value={item.quantity}
-                            onChange={(e) => onUpdateItemQuantity(item.id, e.target.value)}
+                            onChange={(e) =>
+                              onUpdateItemQuantity(item.id, e.target.value)
+                            }
                             inputProps={{ min: 1 }}
                             sx={{ width: 80 }}
                           />
@@ -226,12 +252,18 @@ export default function OrderEditForm({
                             size="small"
                             type="number"
                             value={item.price}
-                            onChange={(e) => onUpdateItemPrice(item.id, e.target.value)}
+                            onChange={(e) =>
+                              onUpdateItemPrice(item.id, e.target.value)
+                            }
                             sx={{ width: 120 }}
                           />
                         </TableCell>
                         <TableCell align="center">
-                          <Typography variant="body2" fontWeight="600" color="primary">
+                          <Typography
+                            variant="body2"
+                            fontWeight="600"
+                            color="primary"
+                          >
                             {formatCurrency(item.price * item.quantity)}
                           </Typography>
                         </TableCell>
@@ -253,7 +285,11 @@ export default function OrderEditForm({
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
-                        <Typography variant="h6" fontWeight="700" color="success.main">
+                        <Typography
+                          variant="h6"
+                          fontWeight="700"
+                          color="success.main"
+                        >
                           {formatCurrency(calculateTotal())}
                         </Typography>
                       </TableCell>
@@ -290,5 +326,5 @@ export default function OrderEditForm({
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

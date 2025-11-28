@@ -4,7 +4,8 @@ import prisma from '@/lib/database';
 
 export async function GET(request, { params }) {
   try {
-    const productId = parseInt(params.id);
+    const { id } = await params; // ✅ اضافه کردن await
+    const productId = parseInt(id);
     
     const product = await prisma.product.findUnique({
       where: { id: productId }
@@ -35,13 +36,14 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
-    const productId = parseInt(params.id);
+    const { id } = await params; // ✅ اضافه کردن await
+    const productId = parseInt(id);
     const body = await request.json();
     
     // تبدیل مقادیر
     const pricingPlanId = parseInt(body.pricingPlanId);
     const minQuantity = parseInt(body.minQuantity);
-    const discountRate = parseFloat(body.discountRate); // تغییر از unitPrice به discountRate
+    const discountRate = parseFloat(body.discountRate);
     
     const product = await prisma.product.findUnique({
       where: { id: productId }
@@ -71,7 +73,7 @@ export async function POST(request, { params }) {
         pricingPlanId: pricingPlanId,
         productCode: product.code,
         minQuantity: minQuantity,
-        discountRate: discountRate, // تغییر از unitPrice به discountRate
+        discountRate: discountRate,
         description: body.description || null
       },
       include: {

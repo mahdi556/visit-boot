@@ -4,26 +4,83 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import {
+  Box,
+  Typography,
+  Breadcrumbs,
+  Button,
+  Card,
+  CardContent,
+  Grid,
+  Chip,
+  Tab,
+  Tabs,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  CircularProgress,
+  Alert,
+  Stack,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  useMediaQuery,
+  useTheme
+} from "@mui/material";
+import {
+  Home as HomeIcon,
+  Inventory as ProductsIcon,
+  ArrowBack as BackIcon,
+  Edit as EditIcon,
+  Tag as TagIcon,
+  Store as StoreIcon,
+  ShoppingCart as CartIcon,
+  AttachMoney as MoneyIcon,
+  Info as InfoIcon,
+  History as HistoryIcon,
+  LocalOffer as PricingIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon
+} from "@mui/icons-material";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const productId = params.id;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
   const [productData, setProductData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState(0);
   const [pricingPlans, setPricingPlans] = useState([]);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchProductData();
-    fetchPricingPlans();
+    if (productId) {
+      fetchProductData();
+      fetchPricingPlans();
+    }
   }, [productId]);
 
   const fetchPricingPlans = async () => {
     try {
       const response = await fetch(`/api/products/${productId}/pricing-plans`);
-      const data = await response.json();
-      setPricingPlans(data);
+      if (response.ok) {
+        const data = await response.json();
+        setPricingPlans(data);
+      }
     } catch (error) {
       console.error("Error fetching pricing plans:", error);
     }
@@ -31,26 +88,47 @@ export default function ProductDetailPage() {
 
   const fetchProductData = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
+      
       const response = await fetch(`/api/products/${productId}/history`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("محصول یافت نشد");
+        } else {
+          throw new Error("خطا در دریافت اطلاعات محصول");
+        }
+      }
+      
       const data = await response.json();
+      
+      if (!data || !data.product) {
+        throw new Error("داده‌های محصول نامعتبر است");
+      }
+      
       setProductData(data);
     } catch (error) {
       console.error("Error fetching product data:", error);
+      setError(error.message);
+      setProductData(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // محاسبه قیمت پایه فروشگاه (12.3% کمتر از قیمت مصرف کننده)
   const calculateStoreBasePrice = (consumerPrice) => {
+    if (!consumerPrice) return 0;
     return Math.round(consumerPrice * (1 - 0.123));
   };
 
   const formatCurrency = (amount) => {
+    if (!amount) return "۰ ریال";
     return new Intl.NumberFormat("fa-IR").format(amount) + " ریال";
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return "تعریف نشده";
     return new Date(dateString).toLocaleDateString("fa-IR");
   };
 
@@ -76,452 +154,690 @@ export default function ProductDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="container-fluid">
-        <div className="d-flex justify-content-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">در حال بارگذاری...</span>
-          </div>
-        </div>
-      </div>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+        <Typography variant="body1" sx={{ ml: 2 }}>
+          در حال بارگذاری اطلاعات محصول...
+        </Typography>
+      </Box>
     );
   }
 
-  if (!productData) {
+  if (error || !productData) {
     return (
-      <div className="container-fluid">
-        <div className="alert alert-danger text-center">
-          <h4>محصول یافت نشد</h4>
-          <Link href="/dashboard/products" className="btn btn-primary mt-3">
-            بازگشت به لیست محصولات
-          </Link>
-        </div>
-      </div>
+      <Box p={3}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <Typography variant="h6">{error || "خطا در دریافت اطلاعات محصول"}</Typography>
+        </Alert>
+        <Button
+          component={Link}
+          href="/dashboard/products"
+          variant="contained"
+          startIcon={<BackIcon />}
+        >
+          بازگشت به لیست محصولات
+        </Button>
+      </Box>
     );
   }
 
-  const { product, salesHistory, totalSales, totalRevenue } = productData;
+  const { product, salesHistory = [], totalSales = 0, totalRevenue = 0 } = productData;
+  
+  if (!product) {
+    return (
+      <Box p={3}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <Typography variant="h6">محصول یافت نشد</Typography>
+        </Alert>
+        <Button
+          component={Link}
+          href="/dashboard/products"
+          variant="contained"
+          startIcon={<BackIcon />}
+        >
+          بازگشت به لیست محصولات
+        </Button>
+      </Box>
+    );
+  }
+
   const storeBasePrice = calculateStoreBasePrice(product.price);
 
+  // آمار محصول
+  const stats = [
+    {
+      label: "قیمت مصرف کننده",
+      value: formatCurrency(product.price),
+      icon: <TagIcon />,
+      color: "primary"
+    },
+    {
+      label: "قیمت پایه فروشگاه",
+      value: formatCurrency(storeBasePrice),
+      icon: <StoreIcon />,
+      color: "success"
+    },
+    {
+      label: "تعداد فروش",
+      value: `${totalSales} عدد`,
+      icon: <CartIcon />,
+      color: "info"
+    },
+    {
+      label: "درآمد کل",
+      value: formatCurrency(totalRevenue),
+      icon: <MoneyIcon />,
+      color: "warning"
+    }
+  ];
+
+  const tabs = [
+    { label: "اطلاعات محصول", icon: <InfoIcon /> },
+    { label: "تاریخچه فروش", icon: <HistoryIcon /> },
+    { label: "طرح‌های قیمت‌گذاری", icon: <PricingIcon /> }
+  ];
+
   return (
-    <div className="container-fluid">
+    <Box p={3}>
       {/* هدر صفحه */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <nav aria-label="breadcrumb">
-            <ol className="breadcrumb">
-              <li className="breadcrumb-item">
-                <Link href="/dashboard" className="text-decoration-none">
-                  داشبورد
-                </Link>
-              </li>
-              <li className="breadcrumb-item">
-                <Link
-                  href="/dashboard/products"
-                  className="text-decoration-none"
-                >
-                  محصولات
-                </Link>
-              </li>
-              <li className="breadcrumb-item active">{product.name}</li>
-            </ol>
-          </nav>
-          <h1 className="h3 mb-0 fw-bold">{product.name}</h1>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={4}>
+        <Box>
+          <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+            <Link href="/dashboard" style={{ textDecoration: 'none' }}>
+              <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+                <HomeIcon sx={{ mr: 0.5 }} fontSize="small" />
+                داشبورد
+              </Typography>
+            </Link>
+            <Link href="/dashboard/products" style={{ textDecoration: 'none' }}>
+              <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
+                <ProductsIcon sx={{ mr: 0.5 }} fontSize="small" />
+                محصولات
+              </Typography>
+            </Link>
+            <Typography color="text.primary">
+              {product.name}
+            </Typography>
+          </Breadcrumbs>
+          
+          <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
+            {product.name}
+          </Typography>
           {product.code && (
-            <small className="text-muted">کد: {product.code}</small>
+            <Typography variant="body1" color="text.secondary">
+              کد: {product.code}
+            </Typography>
           )}
-        </div>
-        <div className="btn-group">
-          <Link
+        </Box>
+        
+        <Stack direction={isMobile ? "column" : "row"} spacing={1}>
+          <Button
+            component={Link}
             href="/dashboard/products"
-            className="btn btn-outline-secondary"
+            variant="outlined"
+            startIcon={<BackIcon />}
+            size={isMobile ? "small" : "medium"}
           >
-            <i className="bi bi-arrow-right me-2"></i>
             بازگشت
-          </Link>
-          <button className="btn btn-primary">
-            <i className="bi bi-pencil me-2"></i>
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<EditIcon />}
+            size={isMobile ? "small" : "medium"}
+          >
             ویرایش
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Stack>
+      </Box>
 
       {/* کارت‌های آمار */}
-      <div className="row mb-4">
-        <div className="col-xl-3 col-md-6 mb-4">
-          <div className="card border-start-primary border-3">
-            <div className="card-body">
-              <div className="row align-items-center">
-                <div className="col">
-                  <div className="text-xs fw-bold text-primary text-uppercase mb-1">
-                    قیمت مصرف کننده
-                  </div>
-                  <div className="h5 mb-0 fw-bold text-gray-800">
-                    {formatCurrency(product.price)}
-                  </div>
-                </div>
-                <div className="col-auto">
-                  <i className="bi bi-tag fs-2 text-gray-300"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-xl-3 col-md-6 mb-4">
-          <div className="card border-start-success border-3">
-            <div className="card-body">
-              <div className="row align-items-center">
-                <div className="col">
-                  <div className="text-xs fw-bold text-success text-uppercase mb-1">
-                    قیمت پایه فروشگاه
-                  </div>
-                  <div className="h5 mb-0 fw-bold text-gray-800">
-                    {formatCurrency(storeBasePrice)}
-                  </div>
-                </div>
-                <div className="col-auto">
-                  <i className="bi bi-shop fs-2 text-gray-300"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-xl-3 col-md-6 mb-4">
-          <div className="card border-start-info border-3">
-            <div className="card-body">
-              <div className="row align-items-center">
-                <div className="col">
-                  <div className="text-xs fw-bold text-info text-uppercase mb-1">
-                    تعداد فروش
-                  </div>
-                  <div className="h5 mb-0 fw-bold text-gray-800">
-                    {totalSales} عدد
-                  </div>
-                </div>
-                <div className="col-auto">
-                  <i className="bi bi-cart-check fs-2 text-gray-300"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-xl-3 col-md-6 mb-4">
-          <div className="card border-start-warning border-3">
-            <div className="card-body">
-              <div className="row align-items-center">
-                <div className="col">
-                  <div className="text-xs fw-bold text-warning text-uppercase mb-1">
-                    درآمد کل
-                  </div>
-                  <div className="h5 mb-0 fw-bold text-gray-800">
-                    {formatCurrency(totalRevenue)}
-                  </div>
-                </div>
-                <div className="col-auto">
-                  <i className="bi bi-currency-dollar fs-2 text-gray-300"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {stats.map((stat, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Card 
+              sx={{ 
+                borderLeft: 4,
+                borderColor: `${stat.color}.main`,
+                height: '100%'
+              }}
+            >
+              <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Box>
+                    <Typography color="text.secondary" variant="body2" gutterBottom>
+                      {stat.label}
+                    </Typography>
+                    <Typography variant="h6" fontWeight="bold">
+                      {stat.value}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      backgroundColor: `${stat.color}.light`,
+                      borderRadius: '50%',
+                      p: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {stat.icon}
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
       {/* تب‌ها */}
-      <div className="card">
-        <div className="card-header">
-          <ul className="nav nav-tabs card-header-tabs">
-            <li className="nav-item">
-              <button
-                className={`nav-link ${
-                  activeTab === "details" ? "active" : ""
-                }`}
-                onClick={() => setActiveTab("details")}
-              >
-                <i className="bi bi-info-circle me-2"></i>
-                اطلاعات محصول
-              </button>
-            </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${
-                  activeTab === "history" ? "active" : ""
-                }`}
-                onClick={() => setActiveTab("history")}
-              >
-                <i className="bi bi-clock-history me-2"></i>
-                تاریخچه فروش
-                {salesHistory.length > 0 && (
-                  <span className="badge bg-primary ms-2">
-                    {salesHistory.length}
-                  </span>
-                )}
-              </button>
-            </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${
-                  activeTab === "pricing" ? "active" : ""
-                }`}
-                onClick={() => setActiveTab("pricing")}
-              >
-                <i className="bi bi-tags me-2"></i>
-                طرح‌های قیمت‌گذاری
-                {pricingPlans.length > 0 && (
-                  <span className="badge bg-primary ms-2">
-                    {pricingPlans.length}
-                  </span>
-                )}
-              </button>
-            </li>
-          </ul>
-        </div>
+      <Card>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs 
+            value={activeTab} 
+            onChange={(e, newValue) => setActiveTab(newValue)}
+            variant={isMobile ? "scrollable" : "standard"}
+            scrollButtons="auto"
+          >
+            {tabs.map((tab, index) => (
+              <Tab 
+                key={index}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {tab.icon}
+                    <Box sx={{ ml: 1 }}>{tab.label}</Box>
+                    {index === 1 && salesHistory.length > 0 && (
+                      <Chip 
+                        label={salesHistory.length} 
+                        size="small" 
+                        color="primary"
+                        sx={{ ml: 1 }}
+                      />
+                    )}
+                    {index === 2 && pricingPlans.length > 0 && (
+                      <Chip 
+                        label={pricingPlans.length} 
+                        size="small" 
+                        color="primary"
+                        sx={{ ml: 1 }}
+                      />
+                    )}
+                  </Box>
+                }
+              />
+            ))}
+          </Tabs>
+        </Box>
 
-        <div className="card-body">
+        <CardContent>
           {/* تب اطلاعات محصول */}
-          {activeTab === "details" && (
-            <div className="row">
-              <div className="col-md-6">
-                <h5 className="border-bottom pb-2 mb-3">مشخصات اصلی</h5>
-                <table className="table table-borderless">
-                  <tbody>
-                    <tr>
-                      <td width="30%" className="fw-bold">
-                        نام محصول:
-                      </td>
-                      <td>{product.name}</td>
-                    </tr>
-                    <tr>
-                      <td className="fw-bold">قیمت مصرف کننده:</td>
-                      <td className="text-success fw-bold">
-                        {formatCurrency(product.price)}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="fw-bold">قیمت پایه فروشگاه:</td>
-                      <td className="text-primary fw-bold">
-                        {formatCurrency(storeBasePrice)}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="fw-bold">دسته‌بندی:</td>
-                      <td>
-                        <span className="badge bg-secondary">
-                          {product.category}
-                        </span>
-                      </td>
-                    </tr>
-                    {product.code && (
-                      <tr>
-                        <td className="fw-bold">کد محصول:</td>
-                        <td>{product.code}</td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td className="fw-bold">تاریخ ایجاد:</td>
-                      <td>{formatDate(product.createdAt)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+          {activeTab === 0 && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom color="primary">
+                  مشخصات اصلی
+                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell component="th" sx={{ fontWeight: 'bold', width: '40%' }}>
+                          نام محصول:
+                        </TableCell>
+                        <TableCell>{product.name}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell component="th" sx={{ fontWeight: 'bold' }}>
+                          قیمت مصرف کننده:
+                        </TableCell>
+                        <TableCell sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                          {formatCurrency(product.price)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell component="th" sx={{ fontWeight: 'bold' }}>
+                          قیمت پایه فروشگاه:
+                        </TableCell>
+                        <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+                          {formatCurrency(storeBasePrice)}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell component="th" sx={{ fontWeight: 'bold' }}>
+                          دسته‌بندی:
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={product.category || "تعریف نشده"} 
+                            color="secondary" 
+                            size="small" 
+                          />
+                        </TableCell>
+                      </TableRow>
+                      {product.code && (
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>
+                            کد محصول:
+                          </TableCell>
+                          <TableCell>{product.code}</TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow>
+                        <TableCell component="th" sx={{ fontWeight: 'bold' }}>
+                          تاریخ ایجاد:
+                        </TableCell>
+                        <TableCell>{formatDate(product.createdAt)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
 
-              <div className="col-md-6">
-                <h5 className="border-bottom pb-2 mb-3">اطلاعات تکمیلی</h5>
-                <table className="table table-borderless">
-                  <tbody>
-                    {product.weight && (
-                      <tr>
-                        <td width="30%" className="fw-bold">
-                          وزن:
-                        </td>
-                        <td>
-                          {product.weight} {product.unit || "گرم"}
-                        </td>
-                      </tr>
-                    )}
-                    {product.description && (
-                      <tr>
-                        <td className="fw-bold">توضیحات:</td>
-                        <td>{product.description}</td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td className="fw-bold">تعداد کل فروش:</td>
-                      <td className="fw-bold text-primary">{totalSales} عدد</td>
-                    </tr>
-                    <tr>
-                      <td className="fw-bold">درآمد کل:</td>
-                      <td className="fw-bold text-success">
-                        {formatCurrency(totalRevenue)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom color="primary">
+                  اطلاعات تکمیلی
+                </Typography>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table>
+                    <TableBody>
+                      {product.weight && (
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold', width: '40%' }}>
+                            وزن:
+                          </TableCell>
+                          <TableCell>
+                            {product.weight} {product.unit || "گرم"}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {product.description && (
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>
+                            توضیحات:
+                          </TableCell>
+                          <TableCell>{product.description}</TableCell>
+                        </TableRow>
+                      )}
+                      <TableRow>
+                        <TableCell component="th" sx={{ fontWeight: 'bold' }}>
+                          تعداد کل فروش:
+                        </TableCell>
+                        <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+                          {totalSales} عدد
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell component="th" sx={{ fontWeight: 'bold' }}>
+                          درآمد کل:
+                        </TableCell>
+                        <TableCell sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                          {formatCurrency(totalRevenue)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+            </Grid>
           )}
 
           {/* تب تاریخچه فروش */}
-          {activeTab === "history" && (
-            <div>
-              <h5 className="border-bottom pb-2 mb-3">تاریخچه فروش محصول</h5>
+          {activeTab === 1 && (
+            <Box>
+              <Typography variant="h6" gutterBottom color="primary">
+                تاریخچه فروش محصول
+              </Typography>
 
               {salesHistory.length > 0 ? (
-                <div className="table-responsive">
-                  <table className="table table-striped table-hover">
-                    <thead>
-                      <tr>
-                        <th>تاریخ فروش</th>
-                        <th>شماره سفارش</th>
-                        <th>مشتری</th>
-                        <th>فروشگاه</th>
-                        <th>تعداد</th>
-                        <th>قیمت واحد</th>
-                        <th>مبلغ کل</th>
-                        <th>وضعیت</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <>
+                  {/* نمایش جدول در دسکتاپ */}
+                  {!isMobile && (
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>تاریخ فروش</TableCell>
+                            <TableCell>شماره سفارش</TableCell>
+                            <TableCell>مشتری</TableCell>
+                            <TableCell>فروشگاه</TableCell>
+                            <TableCell>تعداد</TableCell>
+                            <TableCell>قیمت واحد</TableCell>
+                            <TableCell>مبلغ کل</TableCell>
+                            <TableCell>وضعیت</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {salesHistory.map((sale) => (
+                            <TableRow key={sale.id}>
+                              <TableCell>{formatDate(sale.orderDate)}</TableCell>
+                              <TableCell>
+                                <Link
+                                  href={`/dashboard/orders/${sale.orderId}`}
+                                  style={{ textDecoration: 'none' }}
+                                >
+                                  <Typography color="primary" variant="body2">
+                                    #ORD-{sale.orderId.toString().padStart(4, "0")}
+                                  </Typography>
+                                </Link>
+                              </TableCell>
+                              <TableCell>
+                                {sale.customer
+                                  ? `${sale.customer.firstName} ${sale.customer.lastName}`
+                                  : "مشتری حذف شده"}
+                              </TableCell>
+                              <TableCell>{sale.store?.name || "فروشگاه حذف شده"}</TableCell>
+                              <TableCell>{sale.quantity} عدد</TableCell>
+                              <TableCell sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                                {formatCurrency(sale.price)}
+                              </TableCell>
+                              <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                                {formatCurrency(sale.totalAmount)}
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={
+                                    sale.orderStatus === "DELIVERED"
+                                      ? "تحویل شده"
+                                      : sale.orderStatus === "COMPLETED"
+                                      ? "تکمیل شده"
+                                      : sale.orderStatus
+                                  }
+                                  color={
+                                    sale.orderStatus === "DELIVERED"
+                                      ? "success"
+                                      : sale.orderStatus === "COMPLETED"
+                                      ? "info"
+                                      : "warning"
+                                  }
+                                  size="small"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+
+                  {/* نمایش کارت در موبایل */}
+                  {isMobile && (
+                    <Stack spacing={2}>
                       {salesHistory.map((sale) => (
-                        <tr key={sale.id}>
-                          <td>{formatDate(sale.orderDate)}</td>
-                          <td>
-                            <Link
-                              href={`/dashboard/orders/${sale.orderId}`}
-                              className="text-decoration-none"
-                            >
-                              #ORD-{sale.orderId.toString().padStart(4, "0")}
-                            </Link>
-                          </td>
-                          <td>
-                            {sale.customer
-                              ? `${sale.customer.firstName} ${sale.customer.lastName}`
-                              : "مشتری حذف شده"}
-                          </td>
-                          <td>{sale.store.name}</td>
-                          <td>{sale.quantity} عدد</td>
-                          <td className="text-success">
-                            {formatCurrency(sale.price)}
-                          </td>
-                          <td className="fw-bold text-primary">
-                            {formatCurrency(sale.totalAmount)}
-                          </td>
-                          <td>
-                            <span
-                              className={`badge ${
-                                sale.orderStatus === "DELIVERED"
-                                  ? "bg-success"
-                                  : sale.orderStatus === "COMPLETED"
-                                  ? "bg-info"
-                                  : "bg-warning"
-                              }`}
-                            >
-                              {sale.orderStatus === "DELIVERED"
-                                ? "تحویل شده"
-                                : sale.orderStatus === "COMPLETED"
-                                ? "تکمیل شده"
-                                : sale.orderStatus}
-                            </span>
-                          </td>
-                        </tr>
+                        <Card key={sale.id} variant="outlined">
+                          <CardContent>
+                            <Stack spacing={2}>
+                              <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                                <Typography variant="subtitle2" fontWeight="bold">
+                                  #{sale.orderId.toString().padStart(4, "0")}
+                                </Typography>
+                                <Chip
+                                  label={
+                                    sale.orderStatus === "DELIVERED"
+                                      ? "تحویل شده"
+                                      : sale.orderStatus === "COMPLETED"
+                                      ? "تکمیل شده"
+                                      : sale.orderStatus
+                                  }
+                                  color={
+                                    sale.orderStatus === "DELIVERED"
+                                      ? "success"
+                                      : sale.orderStatus === "COMPLETED"
+                                      ? "info"
+                                      : "warning"
+                                  }
+                                  size="small"
+                                />
+                              </Box>
+                              
+                              <Box display="flex" justifyContent="space-between">
+                                <Typography variant="body2" color="text.secondary">
+                                  تاریخ:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {formatDate(sale.orderDate)}
+                                </Typography>
+                              </Box>
+                              
+                              <Box display="flex" justifyContent="space-between">
+                                <Typography variant="body2" color="text.secondary">
+                                  مشتری:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {sale.customer
+                                    ? `${sale.customer.firstName} ${sale.customer.lastName}`
+                                    : "مشتری حذف شده"}
+                                </Typography>
+                              </Box>
+                              
+                              <Box display="flex" justifyContent="space-between">
+                                <Typography variant="body2" color="text.secondary">
+                                  فروشگاه:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {sale.store?.name || "فروشگاه حذف شده"}
+                                </Typography>
+                              </Box>
+                              
+                              <Box display="flex" justifyContent="space-between">
+                                <Typography variant="body2" color="text.secondary">
+                                  تعداد:
+                                </Typography>
+                                <Typography variant="body2" fontWeight="bold">
+                                  {sale.quantity} عدد
+                                </Typography>
+                              </Box>
+                              
+                              <Box display="flex" justifyContent="space-between">
+                                <Typography variant="body2" color="text.secondary">
+                                  قیمت واحد:
+                                </Typography>
+                                <Typography variant="body2" color="success.main" fontWeight="bold">
+                                  {formatCurrency(sale.price)}
+                                </Typography>
+                              </Box>
+                              
+                              <Box display="flex" justifyContent="space-between">
+                                <Typography variant="body2" color="text.secondary">
+                                  مبلغ کل:
+                                </Typography>
+                                <Typography variant="body1" color="primary.main" fontWeight="bold">
+                                  {formatCurrency(sale.totalAmount)}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </CardContent>
+                        </Card>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </Stack>
+                  )}
+                </>
               ) : (
-                <div className="text-center py-5">
-                  <i className="bi bi-cart-x display-1 text-muted mb-3"></i>
-                  <p className="text-muted">
+                <Box textAlign="center" py={5}>
+                  <CartIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
                     هنوز فروشی برای این محصول ثبت نشده است
-                  </p>
-                </div>
+                  </Typography>
+                </Box>
               )}
-            </div>
+            </Box>
           )}
 
           {/* تب طرح‌های قیمت‌گذاری */}
-          {activeTab === "pricing" && (
-            <div>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="mb-0">طرح‌های قیمت‌گذاری محصول</h5>
-                <button
-                  className="btn btn-primary btn-sm"
+          {activeTab === 2 && (
+            <Box>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Typography variant="h6" color="primary">
+                  طرح‌های قیمت‌گذاری محصول
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
                   onClick={() => setShowPricingModal(true)}
+                  size="small"
                 >
-                  <i className="bi bi-plus-circle me-2"></i>
                   افزودن سطح قیمت
-                </button>
-              </div>
+                </Button>
+              </Box>
 
               {pricingPlans.length > 0 ? (
-                <div className="table-responsive">
-                  <table className="table table-striped">
-                    <thead>
-                      <tr>
-                        <th>طرح</th>
-                        <th>حداقل تعداد</th>
-                        <th>درصد تخفیف</th>
-                        <th>قیمت پایه فروشگاه</th>
-                        <th>قیمت با تخفیف</th>
-                        <th>توضیحات</th>
-                        <th>عملیات</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <>
+                  {/* نمایش جدول در دسکتاپ */}
+                  {!isMobile && (
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>طرح</TableCell>
+                            <TableCell>حداقل تعداد</TableCell>
+                            <TableCell>درصد تخفیف</TableCell>
+                            <TableCell>قیمت پایه فروشگاه</TableCell>
+                            <TableCell>قیمت با تخفیف</TableCell>
+                            <TableCell>توضیحات</TableCell>
+                            <TableCell>عملیات</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {pricingPlans.map((plan) => {
+                            const discountedPrice = Math.round(
+                              storeBasePrice * (1 - (plan.discountRate || 0))
+                            );
+
+                            return (
+                              <TableRow key={plan.id}>
+                                <TableCell>{plan.pricingPlan?.name || "طرح نامشخص"}</TableCell>
+                                <TableCell>
+                                  <Chip 
+                                    label={`${plan.minQuantity} عدد`} 
+                                    color="info" 
+                                    size="small" 
+                                  />
+                                </TableCell>
+                                <TableCell sx={{ color: 'success.main', fontWeight: 'bold' }}>
+                                  {Math.round((plan.discountRate || 0) * 100)}%
+                                </TableCell>
+                                <TableCell>{formatCurrency(storeBasePrice)}</TableCell>
+                                <TableCell sx={{ color: 'error.main', fontWeight: 'bold' }}>
+                                  {formatCurrency(discountedPrice)}
+                                </TableCell>
+                                <TableCell>{plan.description || "-"}</TableCell>
+                                <TableCell>
+                                  <IconButton
+                                    color="error"
+                                    size="small"
+                                    onClick={() => handleDeletePlan(plan.id)}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+
+                  {/* نمایش کارت در موبایل */}
+                  {isMobile && (
+                    <Stack spacing={2}>
                       {pricingPlans.map((plan) => {
                         const discountedPrice = Math.round(
-                          storeBasePrice * (1 - plan.discountRate)
+                          storeBasePrice * (1 - (plan.discountRate || 0))
                         );
 
                         return (
-                          <tr key={plan.id}>
-                            <td>{plan.pricingPlan.name}</td>
-                            <td>
-                              <span className="badge bg-info">
-                                {plan.minQuantity} عدد
-                              </span>
-                            </td>
-                            <td className="text-success fw-bold">
-                              {Math.round(plan.discountRate * 100)}%
-                            </td>
-                            <td>{formatCurrency(storeBasePrice)}</td>
-                            <td className="text-danger fw-bold">
-                              {formatCurrency(discountedPrice)}
-                            </td>
-                            <td>{plan.description || "-"}</td>
-                            <td>
-                              <button
-                                className="btn btn-outline-danger btn-sm"
-                                onClick={() => handleDeletePlan(plan.id)}
-                              >
-                                <i className="bi bi-trash"></i>
-                              </button>
-                            </td>
-                          </tr>
+                          <Card key={plan.id} variant="outlined">
+                            <CardContent>
+                              <Stack spacing={2}>
+                                <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                                  <Typography variant="subtitle1" fontWeight="bold">
+                                    {plan.pricingPlan?.name || "طرح نامشخص"}
+                                  </Typography>
+                                  <IconButton
+                                    color="error"
+                                    size="small"
+                                    onClick={() => handleDeletePlan(plan.id)}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Box>
+                                
+                                <Box display="flex" justifyContent="space-between">
+                                  <Typography variant="body2" color="text.secondary">
+                                    حداقل تعداد:
+                                  </Typography>
+                                  <Chip 
+                                    label={`${plan.minQuantity} عدد`} 
+                                    color="info" 
+                                    size="small" 
+                                  />
+                                </Box>
+                                
+                                <Box display="flex" justifyContent="space-between">
+                                  <Typography variant="body2" color="text.secondary">
+                                    درصد تخفیف:
+                                  </Typography>
+                                  <Typography variant="body2" color="success.main" fontWeight="bold">
+                                    {Math.round((plan.discountRate || 0) * 100)}%
+                                  </Typography>
+                                </Box>
+                                
+                                <Box display="flex" justifyContent="space-between">
+                                  <Typography variant="body2" color="text.secondary">
+                                    قیمت پایه:
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    {formatCurrency(storeBasePrice)}
+                                  </Typography>
+                                </Box>
+                                
+                                <Box display="flex" justifyContent="space-between">
+                                  <Typography variant="body2" color="text.secondary">
+                                    قیمت با تخفیف:
+                                  </Typography>
+                                  <Typography variant="body1" color="error.main" fontWeight="bold">
+                                    {formatCurrency(discountedPrice)}
+                                  </Typography>
+                                </Box>
+                                
+                                {plan.description && (
+                                  <Box>
+                                    <Typography variant="body2" color="text.secondary">
+                                      توضیحات:
+                                    </Typography>
+                                    <Typography variant="body2">
+                                      {plan.description}
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Stack>
+                            </CardContent>
+                          </Card>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
+                    </Stack>
+                  )}
+                </>
               ) : (
-                <div className="text-center py-5">
-                  <i className="bi bi-tags display-1 text-muted mb-3"></i>
-                  <p className="text-muted">
+                <Box textAlign="center" py={5}>
+                  <PricingIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
                     هیچ طرح قیمت‌گذاری برای این محصول تعریف نشده است
-                  </p>
-                  <button
-                    className="btn btn-primary"
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
                     onClick={() => setShowPricingModal(true)}
+                    sx={{ mt: 2 }}
                   >
                     افزودن اولین سطح قیمت
-                  </button>
-                </div>
+                  </Button>
+                </Box>
               )}
-            </div>
+            </Box>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* مودال افزودن طرح قیمت */}
       {showPricingModal && (
@@ -535,7 +851,7 @@ export default function ProductDetailPage() {
           onCancel={() => setShowPricingModal(false)}
         />
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -544,7 +860,7 @@ function PricingPlanForm({ product, storeBasePrice, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
     pricingPlanId: "",
     minQuantity: 3,
-    discountRate: 8, // درصد
+    discountRate: 8,
     description: "",
   });
   const [availablePlans, setAvailablePlans] = useState([]);
@@ -562,11 +878,10 @@ function PricingPlanForm({ product, storeBasePrice, onSuccess, onCancel }) {
         throw new Error("خطا در دریافت طرح‌ها");
       }
       const data = await response.json();
-      // مطمئن شویم data یک آرایه است
       setAvailablePlans(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching pricing plans:", error);
-      setAvailablePlans([]); // در صورت خطا آرایه خالی تنظیم شود
+      setAvailablePlans([]);
     } finally {
       setIsLoadingPlans(false);
     }
@@ -575,7 +890,6 @@ function PricingPlanForm({ product, storeBasePrice, onSuccess, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // اعتبارسنجی
     if (!formData.pricingPlanId) {
       alert("لطفاً یک طرح قیمت‌گذاری انتخاب کنید");
       return;
@@ -587,7 +901,7 @@ function PricingPlanForm({ product, storeBasePrice, onSuccess, onCancel }) {
       const submitData = {
         pricingPlanId: parseInt(formData.pricingPlanId),
         minQuantity: parseInt(formData.minQuantity),
-        discountRate: parseFloat(formData.discountRate) / 100, // تبدیل به اعشار
+        discountRate: parseFloat(formData.discountRate) / 100,
         description: formData.description,
       };
 
@@ -623,183 +937,154 @@ function PricingPlanForm({ product, storeBasePrice, onSuccess, onCancel }) {
   );
 
   return (
-    <div
-      className="modal show d-block"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-    >
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">افزودن سطح قیمت جدید</h5>
-            <button
-              type="button"
-              className="btn-close"
-              onClick={onCancel}
-            ></button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label">طرح قیمت‌گذاری *</label>
-                    {isLoadingPlans ? (
-                      <div className="d-flex align-items-center">
-                        <div
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                        >
-                          <span className="visually-hidden">
-                            در حال بارگذاری...
-                          </span>
-                        </div>
-                        <span>در حال بارگذاری طرح‌ها...</span>
-                      </div>
+    <Dialog open maxWidth="md" fullWidth>
+      <DialogTitle>افزودن سطح قیمت جدید</DialogTitle>
+      <form onSubmit={handleSubmit}>
+        <DialogContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>طرح قیمت‌گذاری</InputLabel>
+                {isLoadingPlans ? (
+                  <Box display="flex" alignItems="center">
+                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                    <Typography variant="body2">در حال بارگذاری طرح‌ها...</Typography>
+                  </Box>
+                ) : (
+                  <Select
+                    value={formData.pricingPlanId}
+                    label="طرح قیمت‌گذاری"
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        pricingPlanId: e.target.value,
+                      })
+                    }
+                  >
+                    <MenuItem value="">انتخاب طرح</MenuItem>
+                    {availablePlans && availablePlans.length > 0 ? (
+                      availablePlans.map((plan) => (
+                        <MenuItem key={plan.id} value={plan.id}>
+                          {plan.name}{" "}
+                          {plan.description && `- ${plan.description}`}
+                        </MenuItem>
+                      ))
                     ) : (
-                      <select
-                        className="form-select"
-                        value={formData.pricingPlanId}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            pricingPlanId: e.target.value,
-                          })
-                        }
-                        required
-                      >
-                        <option value="">انتخاب طرح</option>
-                        {availablePlans && availablePlans.length > 0 ? (
-                          availablePlans.map((plan) => (
-                            <option key={plan.id} value={plan.id}>
-                              {plan.name}{" "}
-                              {plan.description && `- ${plan.description}`}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>
-                            هیچ طرحی یافت نشد
-                          </option>
-                        )}
-                      </select>
+                      <MenuItem value="" disabled>
+                        هیچ طرحی یافت نشد
+                      </MenuItem>
                     )}
-                  </div>
-                </div>
+                  </Select>
+                )}
+              </FormControl>
+            </Grid>
 
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label">حداقل تعداد *</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={formData.minQuantity}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          minQuantity: parseInt(e.target.value) || 1,
-                        })
-                      }
-                      required
-                      min="1"
-                    />
-                    <small className="text-muted">
-                      حداقل تعداد برای اعمال این تخفیف
-                    </small>
-                  </div>
-                </div>
-              </div>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="حداقل تعداد"
+                type="number"
+                value={formData.minQuantity}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    minQuantity: parseInt(e.target.value) || 1,
+                  })
+                }
+                required
+                margin="normal"
+                inputProps={{ min: "1" }}
+                helperText="حداقل تعداد برای اعمال این تخفیف"
+              />
+            </Grid>
 
-              <div className="row">
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label">درصد تخفیف *</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={formData.discountRate}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          discountRate: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      required
-                      min="0"
-                      max="100"
-                      step="1"
-                    />
-                    <small className="text-muted">
-                      درصد تخفیف از قیمت پایه فروشگاه
-                    </small>
-                  </div>
-                </div>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="درصد تخفیف"
+                type="number"
+                value={formData.discountRate}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    discountRate: parseFloat(e.target.value) || 0,
+                  })
+                }
+                required
+                margin="normal"
+                inputProps={{ min: "0", max: "100", step: "1" }}
+                helperText="درصد تخفیف از قیمت پایه فروشگاه"
+              />
+            </Grid>
 
-                <div className="col-md-6">
-                  <div className="mb-3">
-                    <label className="form-label">توضیحات</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          description: e.target.value,
-                        })
-                      }
-                      placeholder="مثال: تخفیف عمده‌فروشی"
-                    />
-                  </div>
-                </div>
-              </div>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="توضیحات"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    description: e.target.value,
+                  })
+                }
+                margin="normal"
+                placeholder="مثال: تخفیف عمده‌فروشی"
+              />
+            </Grid>
 
-              <div className="alert alert-info">
-                <strong>پیش‌نمایش قیمت:</strong>
-                <div className="row mt-2">
-                  <div className="col-md-4">
-                    <small>قیمت مصرف‌کننده:</small>
-                    <div className="fw-bold">
+            <Grid item xs={12}>
+              <Alert severity="info">
+                <Typography variant="subtitle2" gutterBottom>
+                  پیش‌نمایش قیمت:
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      قیمت مصرف‌کننده:
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold">
                       {product.price?.toLocaleString("fa-IR")} ریال
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <small>قیمت پایه فروشگاه:</small>
-                    <div className="fw-bold text-primary">
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      قیمت پایه فروشگاه:
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold" color="primary.main">
                       {storeBasePrice?.toLocaleString("fa-IR")} ریال
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <small>قیمت با تخفیف:</small>
-                    <div className="fw-bold text-success">
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="body2" color="text.secondary">
+                      قیمت با تخفیف:
+                    </Typography>
+                    <Typography variant="body1" fontWeight="bold" color="success.main">
                       {discountedPrice?.toLocaleString("fa-IR")} ریال
-                    </div>
-                  </div>
-                </div>
-                <small className="text-muted mt-2 d-block">
+                    </Typography>
+                  </Grid>
+                </Grid>
+                <Typography variant="body2" sx={{ mt: 1 }}>
                   اگر مشتری {formData.minQuantity} عدد یا بیشتر بخرد، قیمت هر
                   عدد {discountedPrice?.toLocaleString("fa-IR")} ریال خواهد بود.
-                </small>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onCancel}
-                disabled={isLoading}
-              >
-                انصراف
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={isLoading || !formData.pricingPlanId}
-              >
-                {isLoading ? "در حال ذخیره..." : "افزودن سطح قیمت"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+                </Typography>
+              </Alert>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onCancel} disabled={isLoading}>
+            انصراف
+          </Button>
+          <Button 
+            type="submit" 
+            variant="contained"
+            disabled={isLoading || !formData.pricingPlanId}
+          >
+            {isLoading ? "در حال ذخیره..." : "افزودن سطح قیمت"}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 }

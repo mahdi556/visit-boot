@@ -1,10 +1,11 @@
-// src/app/api/products/[id]/history/route.js
-import { NextResponse } from 'next/server'
-import prisma from '@/lib/database'
+// 📂 src/app/api/products/[id]/history/route.js
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/database';
 
 export async function GET(request, { params }) {
   try {
-    const productId = parseInt(params.id)
+    const { id } = await params; // ✅ اضافه کردن await
+    const productId = parseInt(id);
 
     // دریافت اطلاعات محصول
     const product = await prisma.product.findUnique({
@@ -34,7 +35,7 @@ export async function GET(request, { params }) {
           where: {
             order: {
               status: {
-                in: ['DELIVERED', 'COMPLETED', 'PAID']
+                in: ['DELIVERED', 'CONFIRMED'] // ✅ استفاده از statusهای معتبر
               }
             }
           },
@@ -43,15 +44,16 @@ export async function GET(request, { params }) {
               orderDate: 'desc'
             }
           }
-        }
+        },
+        Inventory: true
       }
-    })
+    });
 
     if (!product) {
       return NextResponse.json(
         { error: 'محصول یافت نشد' },
         { status: 404 }
-      )
+      );
     }
 
     // ساختاردهی داده‌های تاریخچه
@@ -65,20 +67,21 @@ export async function GET(request, { params }) {
       store: item.order.store,
       customer: item.order.user,
       orderStatus: item.order.status
-    }))
+    }));
 
     return NextResponse.json({
       product,
       salesHistory,
       totalSales: salesHistory.reduce((sum, item) => sum + item.quantity, 0),
-      totalRevenue: salesHistory.reduce((sum, item) => sum + item.totalAmount, 0)
-    })
+      totalRevenue: salesHistory.reduce((sum, item) => sum + item.totalAmount, 0),
+      currentStock: product.Inventory?.quantity || 0
+    });
 
   } catch (error) {
-    console.error('Error fetching product history:', error)
+    console.error('Error fetching product history:', error);
     return NextResponse.json(
       { error: 'خطا در دریافت تاریخچه محصول' },
       { status: 500 }
-    )
+    );
   }
 }
